@@ -3,8 +3,14 @@ using EchoSpace.Annotation;
 using EchoSpace.Core;
 using EchoSpace.SwitchView;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 using UnityEngine.XR;
+using XRInputDevice = UnityEngine.XR.InputDevice;
+using XRInputDevices = UnityEngine.XR.InputDevices;
+using XRInputDeviceCharacteristics = UnityEngine.XR.InputDeviceCharacteristics;
+using XRInputFeatureUsageBool = UnityEngine.XR.InputFeatureUsage<bool>;
+using XRCommonUsages = UnityEngine.XR.CommonUsages;
 
 namespace EchoSpace.LineOfLife
 {
@@ -100,7 +106,24 @@ namespace EchoSpace.LineOfLife
         [Header("XR Controller Toggle")]
         public bool enableXRControllerToggle = true;
         public bool useRightBButtonFor3DView = true;
-        private bool _rightBWasPressed;
+
+        [Header("XR Button Mapping")]
+        public XRBoolButtonUsage right3DViewToggleButton = XRBoolButtonUsage.SecondaryButton;
+
+        [Header("XR Button Debug")]
+        public bool logRightControllerAllBoolFeatures = false;
+
+        [Header("XR Input Action Toggle")]
+        public bool enableInputActionToggleFor3DView = true;
+        public InputActionProperty right3DViewToggleAction;
+
+        private bool _right3DViewToggleWasPressed;
+        private bool _right3DViewActionWasPressed;
+        private readonly Dictionary<string, bool> _rightBoolFeaturePreviousStates = new Dictionary<string, bool>();
+        private bool _warnedNoRightController;
+        private bool _warnedNoRightBoolFeatures;
+        private bool _warnedSteamVRBButtonMapping;
+        private bool _loggedRightBoolFeatureCatalog;
 
         private void Awake()
         {
@@ -119,36 +142,79 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void OnEnable()
+        {
+            if (right3DViewToggleAction.action != null)
+            {
+                right3DViewToggleAction.action.Enable();
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (right3DViewToggleAction.action != null)
+            {
+                right3DViewToggleAction.action.Disable();
+            }
+        }
+
         private void Update()
         {
+            DebugRightControllerBoolFeatures();
+
             if (enableKeyboardToggle && Input.GetKeyDown(toggleKey))
             {
                 ToggleViewByHotkey();
             }
 
-            if (enableXRControllerToggle && useRightBButtonFor3DView && GetRightSecondaryButtonDown())
+            if (enableInputActionToggleFor3DView && GetRight3DViewInputActionDown())
             {
-                Debug.Log("[LineOfLife3DView] Right B button toggle 3D view.");
+                Debug.Log("[LineOfLife3DView] InputAction button toggle 3D view.");
+                ToggleViewByHotkey();
+            }
+
+            if (enableXRControllerToggle && useRightBButtonFor3DView && GetRight3DViewToggleButtonDown())
+            {
+                Debug.Log("[LineOfLife3DView] Right button toggle 3D view: " + right3DViewToggleButton);
                 ToggleViewByHotkey();
             }
         }
 
-        private bool GetRightSecondaryButtonDown()
+        private bool GetRight3DViewInputActionDown()
         {
-            bool pressed = GetRightControllerButton(CommonUsages.secondaryButton);
-            bool down = pressed && !_rightBWasPressed;
-            _rightBWasPressed = pressed;
+            InputAction action = right3DViewToggleAction.action;
+            if (action == null)
+            {
+                return false;
+            }
+
+            float value = action.ReadValue<float>();
+            bool pressed = value > 0.5f;
+            bool down = pressed && !_right3DViewActionWasPressed;
+            _right3DViewActionWasPressed = pressed;
             return down;
         }
 
-        private bool GetRightControllerButton(InputFeatureUsage<bool> usage)
+        private bool GetRight3DViewToggleButtonDown()
         {
-            var devices = new List<InputDevice>();
-            InputDevices.GetDevicesWithCharacteristics(
-                InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Right,
+            bool pressed = GetControllerButton(XRInputDeviceCharacteristics.Right, right3DViewToggleButton);
+            bool down = pressed && !_right3DViewToggleWasPressed;
+            _right3DViewToggleWasPressed = pressed;
+            return down;
+        }
+
+        private bool GetControllerButton(
+            XRInputDeviceCharacteristics hand,
+            XRBoolButtonUsage buttonUsage)
+        {
+            var devices = new List<XRInputDevice>();
+            XRInputDevices.GetDevicesWithCharacteristics(
+                XRInputDeviceCharacteristics.Controller | hand,
                 devices);
 
-            foreach (InputDevice device in devices)
+            XRInputFeatureUsageBool usage = GetBoolUsage(buttonUsage);
+
+            foreach (XRInputDevice device in devices)
             {
                 if (device.TryGetFeatureValue(usage, out bool pressed) && pressed)
                 {
@@ -157,6 +223,129 @@ namespace EchoSpace.LineOfLife
             }
 
             return false;
+        }
+
+        private static XRInputFeatureUsageBool GetBoolUsage(XRBoolButtonUsage buttonUsage)
+        {
+            switch (buttonUsage)
+            {
+                case XRBoolButtonUsage.PrimaryButton:
+                    return XRCommonUsages.primaryButton;
+                case XRBoolButtonUsage.SecondaryButton:
+                    return XRCommonUsages.secondaryButton;
+                case XRBoolButtonUsage.GripButton:
+                    return XRCommonUsages.gripButton;
+                case XRBoolButtonUsage.TriggerButton:
+                    return XRCommonUsages.triggerButton;
+                case XRBoolButtonUsage.MenuButton:
+                    return XRCommonUsages.menuButton;
+                case XRBoolButtonUsage.PrimaryTouch:
+                    return XRCommonUsages.primaryTouch;
+                case XRBoolButtonUsage.SecondaryTouch:
+                    return XRCommonUsages.secondaryTouch;
+                case XRBoolButtonUsage.Primary2DAxisClick:
+                    return XRCommonUsages.primary2DAxisClick;
+                case XRBoolButtonUsage.Secondary2DAxisClick:
+                    return XRCommonUsages.secondary2DAxisClick;
+                case XRBoolButtonUsage.Primary2DAxisTouch:
+                    return XRCommonUsages.primary2DAxisTouch;
+                case XRBoolButtonUsage.Secondary2DAxisTouch:
+                    return XRCommonUsages.secondary2DAxisTouch;
+                default:
+                    return XRCommonUsages.primaryButton;
+            }
+        }
+
+        private void DebugRightControllerBoolFeatures()
+        {
+            if (!logRightControllerAllBoolFeatures)
+            {
+                return;
+            }
+
+            if (!_warnedSteamVRBButtonMapping)
+            {
+                _warnedSteamVRBButtonMapping = true;
+                Debug.LogWarning(
+                    "[LineOfLife3DView] Right controller bool feature debug is on. Press Right B and look for "
+                    + "'[XRButtonDebug] Right bool feature pressed' logs. "
+                    + "If B produces no log, SteamVR may not expose it as a UnityEngine.XR bool feature; "
+                    + "a future fix may require Input Action Reference binding via XRI RightHand.");
+            }
+
+            var devices = new List<XRInputDevice>();
+            XRInputDevices.GetDevicesWithCharacteristics(
+                XRInputDeviceCharacteristics.Controller | XRInputDeviceCharacteristics.Right,
+                devices);
+
+            if (devices.Count == 0)
+            {
+                if (!_warnedNoRightController)
+                {
+                    _warnedNoRightController = true;
+                    Debug.LogWarning("[LineOfLife3DView] No right XR controller device found for bool feature debug.");
+                }
+
+                return;
+            }
+
+            bool foundAnyBoolFeature = false;
+            var catalogNames = !_loggedRightBoolFeatureCatalog ? new List<string>() : null;
+
+            foreach (XRInputDevice device in devices)
+            {
+                var usages = new List<InputFeatureUsage>();
+                if (!device.TryGetFeatureUsages(usages))
+                {
+                    continue;
+                }
+
+                foreach (InputFeatureUsage usage in usages)
+                {
+                    if (usage.type != typeof(bool))
+                    {
+                        continue;
+                    }
+
+                    foundAnyBoolFeature = true;
+                    catalogNames?.Add(usage.name);
+
+                    XRInputFeatureUsageBool boolUsage = new XRInputFeatureUsageBool(usage.name);
+
+                    if (!device.TryGetFeatureValue(boolUsage, out bool pressed))
+                    {
+                        continue;
+                    }
+
+                    string key = device.name + "/" + usage.name;
+
+                    bool wasPressed = _rightBoolFeaturePreviousStates.ContainsKey(key)
+                        ? _rightBoolFeaturePreviousStates[key]
+                        : false;
+
+                    if (pressed && !wasPressed)
+                    {
+                        Debug.Log("[XRButtonDebug] Right bool feature pressed: " + usage.name + " on device: " + device.name);
+                    }
+
+                    _rightBoolFeaturePreviousStates[key] = pressed;
+                }
+            }
+
+            if (!_loggedRightBoolFeatureCatalog && catalogNames != null && catalogNames.Count > 0)
+            {
+                _loggedRightBoolFeatureCatalog = true;
+                Debug.Log("[XRButtonDebug] Right controller bool features available: " + string.Join(", ", catalogNames));
+            }
+
+            if (!_warnedNoRightBoolFeatures && !foundAnyBoolFeature)
+            {
+                _warnedNoRightBoolFeatures = true;
+                Debug.LogWarning(
+                    "[LineOfLife3DView] Right controller exposes no bool XR features via TryGetFeatureUsages. "
+                    + "SteamVR may not map physical buttons (e.g. B) to UnityEngine.XR bool features. "
+                    + "A future fix may require Input Action Reference binding via XRI RightHand.");
+            }
         }
 
         private void ResolvePromptReferences()

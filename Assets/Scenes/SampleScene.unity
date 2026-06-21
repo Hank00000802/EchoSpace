@@ -179,7 +179,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u904E\u53BB"
+  m_text: Past
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -339,6 +339,10 @@ PrefabInstance:
     - target: {fileID: 1717954561962503725, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
       propertyPath: m_Name
       value: XR Origin (XR Rig)
+      objectReference: {fileID: 0}
+    - target: {fileID: 1717954561962503726, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0.9185766
       objectReference: {fileID: 0}
     - target: {fileID: 1717954561962503726, guid: f6336ac4ac8b4d34bc5072418cdc62a0, type: 3}
       propertyPath: m_LocalPosition.x
@@ -673,6 +677,7 @@ MonoBehaviour:
   lineOfLifeCamera: {fileID: 355198956}
   enableXRControllerToggle: 1
   useRightAButtonForLineOfLifePanel: 1
+  rightLineOfLifeToggleButton: 4
 --- !u!1 &68455446
 GameObject:
   m_ObjectHideFlags: 0
@@ -868,7 +873,11 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4F60\u200B\u525B\u624D\u200B\u63CF\u8FF0\u200B\u4E86\u200B\u4EE5\u524D\u200B\u7684\u200B\u81EA\u5DF1\u3001\u200B\u90A3\u6BB5\u200B\u8F49\u8B8A\uFF0C\u200B\u4EE5\u53CA\u200B\u73FE\u200B\u5728\u200B\u7684\u200B\u81EA\u5DF1\uFF0C\u200B\u4E5F\u200B\u8AAA\u200B\u4E86\u200B\u9019\u6BB5\u200B\u904E\u7A0B\u5C0D\u200B\u4F60\u200B\u6700\u200B\u91CD\u8981\u200B\u7684\u200B\u662F\u200B\u4EC0\u9EBC\u3002\u200B\n\u63A5\u4E0B\u4F86\uFF0C\u200B\u7CFB\u7D71\u200B\u6703\u5E36\u200B\u4F60\u200B\u56DE\u5230\u200B\u4E00\u500B\u200B\u548C\u200B\u904E\u53BB\u200B\u81EA\u5DF1\u200B\u6709\u95DC\u200B\u7684\u200B\u719F\u6089\u200B\u8996\u89D2\u3002\u200B\u4F60\u200B\u4E0D\u200B\u9700\u8981\u200B\u626E\u6F14\u904E\u53BB\u200B\u7684\u200B\u81EA\u5DF1\uFF0C\u200B\u4E5F\u200B\u4E0D\u200B\u9700\u8981\u200B\u505A\u200B\u4EFB\u200B\u4F55\u200B\u4E8B\uFF0C\u200B\u53EA\u662F\u200B\u5728\u200B\u9019\u500B\u200B\u4F4D\u200B\u7F6E\u5F85\u200B\u4E00\u4E0B\uFF0C\u200B\u8B93\u200B\u90A3\u4E9B\u200B\u8A18\u61B6\u200B\u81EA\u7136\u200B\u6D6E\u73FE\u3002\u200B"
+  m_text: You have just described your past self, the transition, and your present
+    self, as well as what feels most important about this journey. Next, the system
+    will bring you back to a familiar viewpoint related to your past self. You do
+    not need to act as your past self or do anything in particular. Simply stay in
+    this position for a moment and let the memories naturally emerge.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -1011,7 +1020,7 @@ RectTransform:
   m_GameObject: {fileID: 77396119}
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0.76}
-  m_LocalScale: {x: -0.07069251, y: -0.07290036, z: -0.052033365}
+  m_LocalScale: {x: -0.084875666, y: -0.096438974, z: -0.052033365}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 736278881}
@@ -1020,7 +1029,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 8.89, y: 4.000003}
+  m_AnchoredPosition: {x: 8.89, y: 4.9}
   m_SizeDelta: {x: 781, y: 439}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &77396121
@@ -1197,8 +1206,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 20
-  m_fontSizeBase: 20
+  m_fontSize: 16
+  m_fontSizeBase: 16
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -1296,7 +1305,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8F49\u6298"
+  m_text: Transition
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -1430,7 +1439,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E00\u6BB5\u95DC\u4FC2"
+  m_text: Relationship
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -1457,8 +1466,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 22
+  m_fontSizeBase: 22
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -1894,7 +1903,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8F49\u8B8A-->\u73FE\u200B\u5728\u200B :\u200B\n\u5F9E\u200B\u300C\u8F49\u8B8A\u300D\u200B\u7684\u200B\u72C0\u614B\u200B\u5230\u200B\u300C\u73FE\u200B\u5728\u300D\u200B\u7684\u200B\u72C0\u614B\uFF0C\u200B\u4F60\u200B\u89BA\u5F97\u200B\u54EA\u4E9B\u200B\u6771\u897F\u6490\u904E\u200B\u4E86\u200B\u90A3\u200B\u6BB5\u200B\u8F49\u8B8A\u73FE\u200B\u5728\u200B\u9084\u200B\u5728\u200B\u4F60\u200B\u8EAB\u4E0A\uFF1F\u200B\u54EA\u4E9B\u200B\u5DF2\u200B\u7D93\u200B\u4E0D\u200B\u4E00\u200B\u6A23\u200B\u4E86\uFF1F\u200B"
+  m_text: "Transition \u2192 Present: From the \u201CTransition\u201D state to the
+    \u201CPresent\u201D state, what has carried through and remains with you now?
+    What has changed?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -2265,7 +2276,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E0D\u78BA\u5B9A"
+  m_text: Uncertain
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -2466,7 +2477,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u95DC\u9589"
+  m_text: Close
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -2592,7 +2603,7 @@ MonoBehaviour:
   timelineRoot: {fileID: 1066258722}
   playerCamera: {fileID: 355198959}
   distanceFromCamera: 1
-  verticalOffset: 0
+  verticalOffset: -0.5
   rotationOffsetEuler: {x: 0, y: 180, z: 0}
   anchorManager: {fileID: 345392358}
   curveRenderer: {fileID: 1226468124}
@@ -2640,6 +2651,29 @@ MonoBehaviour:
   refreshOnOpenByHotkey: 1
   enableXRControllerToggle: 1
   useRightBButtonFor3DView: 1
+  right3DViewToggleButton: 2
+  logRightControllerAllBoolFeatures: 0
+  enableInputActionToggleFor3DView: 0
+  right3DViewToggleAction:
+    m_UseReference: 0
+    m_Action:
+      m_Name: Right 3D View Toggle
+      m_Type: 1
+      m_ExpectedControlType: Button
+      m_Id: 8a416318-e4f3-463f-b146-b3343c6a70ef
+      m_Processors: 
+      m_Interactions: 
+      m_SingletonActionBindings:
+      - m_Name: 
+        m_Id: 6c87b829-7f23-4fc2-afc2-8c2b54f5b14c
+        m_Path: <XRController>{RightHand}/{SecondaryButton}
+        m_Interactions: 
+        m_Processors: 
+        m_Groups: 
+        m_Action: Right 3D View Toggle
+        m_Flags: 0
+      m_Flags: 0
+    m_Reference: {fileID: 0}
 --- !u!1 &300910189
 GameObject:
   m_ObjectHideFlags: 0
@@ -2936,7 +2970,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u6574\u9AD4\u53CD\u601D"
+  m_text: Overall
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -3038,8 +3072,8 @@ Transform:
   m_GameObject: {fileID: 329790403}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: 0.10445147, z: -0, w: 0.99452996}
-  m_LocalPosition: {x: -214.721, y: 4.469, z: -189.311}
-  m_LocalScale: {x: 1.3359, y: 1.3359, z: 1.3359}
+  m_LocalPosition: {x: -214.897, y: 4.828, z: -189.274}
+  m_LocalScale: {x: 2.2585998, y: 2.2585998, z: 2.2585998}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 806089385}
@@ -4709,7 +4743,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -0.01171875, y: 0}
+  m_AnchoredPosition: {x: 0.0073242188, y: 0}
   m_SizeDelta: {x: 0, y: 320}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &581402001
@@ -4852,7 +4886,11 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4F60\u200B\u525B\u200B\u624D\u200B\u8AAA\u200B\u7684\u200B\u9019\u4E9B\u200B\u2014\u2014\u200B\u4EE5\u524D\u200B\u7684\u200B\u72C0\u614B\u3001\u200B\u90A3\u6BB5\u200B\u8F49\u8B8A\u3001\u200B\u9084\u200B\u6709\u200B\u73FE\u200B\u5728\u200B\u7684\u200B\u81EA\u5DF1\u200B\u2014\u2014\u200B\u4F60\u200B\u89BA\u5F97\u200B\u9019\u6BB5\u200B\u5F9E\u904E\u200B\u53BB\u200B\u8D70\u200B\u5230\u200B\u73FE\u5728\u200B\u7684\u200B\u904E\u7A0B\uFF0C\u200B\u5C0D\u73FE\u200B\u5728\u200B\u7684\u200B\u4F60\u200B\u4F86\u8AAA\u200B\u6700\u200B\u6709\u200B\u611F\u200B\u7684\u200B\u662F\u200B\u4EC0\u9EBC\uFF1F\u200B\u53EF\u4EE5\u200B\u662F\u200B\u4E00\u200B\u500B\u200B\u9818\u609F\u3001\u200B\u4E00\u500B\u200B\u611F\u53D7\u3001\u200B\u6216\u662F\u200B\u4E00\u200B\u53E5\u200B\u4F60\u200B\u60F3\u200B\u5C0D\u200B\u81EA\u5DF1\u200B\u8AAA\u200B\u7684\u200B\u8A71\uFF0C\u200B\u4E0D\u200B\u9700\u8981\u200B\u5B8C\u6574\uFF0C\u200B\u8AAA\u51FA\u200B\u7B2C\u4E00\u200B\u500B\u200B\u6D6E\u73FE\u200B\u7684\u200B\u5C31\u597D\u3002\u200B"
+  m_text: "Thinking about what you just described \u2014 your past state, that transition,
+    and your present self \u2014 what feels most meaningful to you about this journey
+    from past to present? It can be an insight, a feeling, or a sentence you want
+    to say to yourself. It does not need to be complete; just say what first comes
+    to mind."
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -4879,8 +4917,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 25
-  m_fontSizeBase: 25
+  m_fontSize: 24
+  m_fontSizeBase: 24
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -5043,7 +5081,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E00\u6BB5\n\u5177\u9AD4\u8A18\u61B6"
+  m_text: 'Specific
+
+    Memory'
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -5185,7 +5225,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u6574\u7406\u6458\u8981"
+  m_text: Reflection Summary
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -5873,8 +5913,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u904E\u200B\u53BB\u200B-->\u8F49\u8B8A :\u200B \n\u5F9E\u200B\u4F60\u200B\u525B\u200B\u624D\u200B\u7406\u200B\u89E3\u5230\u200B\u81EA\u5DF1\u200B\u300C\u904E\u53BB\u300D\u200B\u53CA\u200B\u300C\u8F49\u8B8A\u300D\u200B\u7684\u200B\u72C0\u614B\uFF0C\u200B
-    \u200B\u4F60\u200B\u6709\u200B\u6C92\u200B\u6709\u200B\u6CE8\u610F\u200B\u5230\u200B\u662F\u200B\u54EA\u500B\u200B\u6642\u9593\u9EDE\u200B\u6216\u200B\u54EA\u4EF6\u200B\u4E8B\u8B93\u200B\u4F60\u200B\u958B\u59CB\u200B\u96E2\u958B\u200B\u539F\u672C\u200B\u904E\u53BB\u200B\u7684\u200B\u72C0\u614B\uFF1F\u200B"
+  m_text: "Past \u2192 Transition: Based on how you understood your \u201CPast\u201D
+    and \u201CTransition\u201D states, can you identify a moment or event when you
+    began to move away from your previous state?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -6307,7 +6348,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u904E\u53BB\u81EA\u5DF1"
+  m_text: Past Self
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -6969,7 +7010,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &719077870
 RectTransform:
   m_ObjectHideFlags: 0
@@ -6979,14 +7020,14 @@ RectTransform:
   m_GameObject: {fileID: 719077869}
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -5}
-  m_LocalScale: {x: 123.10771, y: 40.622967, z: 36.850975}
+  m_LocalScale: {x: 123.10771, y: 40.622967, z: 44.98801}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1801107392}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -9, y: -523.00024}
+  m_AnchoredPosition: {x: -9, y: -589}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &719077871
@@ -7031,7 +7072,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a5e50532f4b3acf449aa02792717a0b9, type: 2}
+  - {fileID: 2100000, guid: 42e90f338d58beb4eaa509aa9527f5dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7467,7 +7508,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &819034121
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7477,14 +7518,14 @@ RectTransform:
   m_GameObject: {fileID: 819034120}
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -14}
-  m_LocalScale: {x: 118.89195, y: 39.21771, z: 34.53969}
+  m_LocalScale: {x: 118.89195, y: 39.21771, z: 42.054012}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1386914270}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 8, y: -523.00024}
+  m_AnchoredPosition: {x: 8, y: -558}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &819034122
@@ -7529,7 +7570,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 15c1c4d173935a74988ba55d775a8a35, type: 2}
+  - {fileID: 2100000, guid: 53fea407df5fd294393652dc76882d5e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -7616,7 +7657,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u904E\u53BB\u7684\u6211"
+  m_text: Past Self
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -7862,7 +7903,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &867533194
 RectTransform:
   m_ObjectHideFlags: 0
@@ -7872,14 +7913,14 @@ RectTransform:
   m_GameObject: {fileID: 867533193}
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -22}
-  m_LocalScale: {x: 118.89195, y: 39.21771, z: 34.53969}
+  m_LocalScale: {x: 118.89195, y: 39.21771, z: 42.26554}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1801107392}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -9, y: -523.00024}
+  m_AnchoredPosition: {x: -9, y: -576}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &867533195
@@ -7924,7 +7965,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 15c1c4d173935a74988ba55d775a8a35, type: 2}
+  - {fileID: 2100000, guid: 53fea407df5fd294393652dc76882d5e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -8025,7 +8066,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 11.3, y: 162}
+  m_AnchoredPosition: {x: 11.3, y: 228}
   m_SizeDelta: {x: 160, y: 30}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &942172887
@@ -8411,7 +8452,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5207\u63DB\u8996\u89D2"
+  m_text: Switch View
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -8791,7 +8832,7 @@ RectTransform:
   m_GameObject: {fileID: 1017449037}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: -0}
-  m_LocalScale: {x: -0.07069252, y: -0.03892564, z: -0.052033354}
+  m_LocalScale: {x: -0.07069252, y: -0.046461664, z: -0.052033354}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1521312821}
@@ -8799,7 +8840,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 8.89, y: 6.78}
+  m_AnchoredPosition: {x: 8.89, y: 7.02}
   m_SizeDelta: {x: 781, y: 439}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1017449039
@@ -9080,7 +9121,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8ACB\u200B\u628A\u200B\u4F60\u200B\u89BA\u5F97\u200B\u4ECD\u200B\u5EF6\u7E8C\u200B\u5230\u200B\u73FE\u5728\uFF0C\u200B\u6216\u200B\u4ECD\u200B\u5728\u200B\u5F71\u97FF\u3001\u200B\u5F62\u5851\u73FE\u200B\u5728\u200B\u81EA\u5DF1\u200B\u7684\u200B\u8A18\u61B6\u200B\u653E\u200B\u5728\u200B\u9019\u88E1\u3002"
+  m_text: Place memories here that you feel still continue into the present, or still
+    influence and shape who you are now.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -9089,8 +9131,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -10875,7 +10917,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8ACB\u200B\u628A\u200B\u8B93\u200B\u4F60\u200B\u60F3\u5230\u200B\u300C\u4EE5\u524D\u200B\u7684\u200B\u6211\u300D\uFF0C\u200B\u6216\u8B93\u200B\u4F60\u200B\u611F\u89BA\u200B\u548C\u200B\u73FE\u200B\u5728\u200B\u76F8\u6BD4\u200B\u5DF2\u200B\u7D93\u200B\u4E0D\u540C\u3001\u200B\u758F\u9060\u200B\u6216\u200B\u964C\u751F\u200B\u7684\u200B\u8A18\u61B6\u200B\u653E\u200B\u5728\u200B\u9019\u88E1\u3002\u200B"
+  m_text: "Place memories here that remind you of your \u201Cpast self,\u201D or
+    memories that feel different, distant, or unfamiliar compared with who you are
+    now."
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -10884,8 +10928,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -12143,7 +12187,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5B8C\u6210\u6574\u7406"
+  m_text: Finish
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -12170,8 +12214,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 24
-  m_fontSizeBase: 24
+  m_fontSize: 20
+  m_fontSizeBase: 20
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -12860,7 +12904,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u904E\u53BB\u751F\u6D3B"
+  m_text: Past Life
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -12999,7 +13043,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5132\u5B58"
+  m_text: Save
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -13955,7 +13999,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u4E00\u6B21\u8F49\u8B8A"
+  m_text: Transition Moment
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -14383,7 +14427,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u73FE\u5728"
+  m_text: Present
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -14517,7 +14561,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8F49\u8B8A\u4E2D\u7684\u6211"
+  m_text: Transition
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -14915,7 +14959,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1736498251}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -15015,7 +15059,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8DE8\u5340\u9023\u7D50"
+  m_text: Cross Link
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -15110,7 +15154,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1743584160
 RectTransform:
   m_ObjectHideFlags: 0
@@ -15120,14 +15164,14 @@ RectTransform:
   m_GameObject: {fileID: 1743584159}
   m_LocalRotation: {x: 0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -8}
-  m_LocalScale: {x: 118.89336, y: 39.22579, z: 34.544582}
+  m_LocalScale: {x: 118.89336, y: 39.22579, z: 58.48491}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1301908034}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0, y: -523}
+  m_AnchoredPosition: {x: -0, y: -666}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &1743584161
@@ -15172,7 +15216,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 15c1c4d173935a74988ba55d775a8a35, type: 2}
+  - {fileID: 2100000, guid: 53fea407df5fd294393652dc76882d5e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -15259,7 +15303,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "~ \u4EBA \u751F \u6642 \u9593 \u8EF8 ~"
+  m_text: ~ Line of Life ~
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -15410,7 +15454,7 @@ RectTransform:
   m_GameObject: {fileID: 1772512560}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0.2}
-  m_LocalScale: {x: -0.084265485, y: -0.057940815, z: -0.052033354}
+  m_LocalScale: {x: -0.08166937, y: -0.06391815, z: -0.052033354}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2004881286}
@@ -15418,7 +15462,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 8.9, y: 6.78}
+  m_AnchoredPosition: {x: 8.9, y: 7}
   m_SizeDelta: {x: 781, y: 439}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1772512562
@@ -15558,7 +15602,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u770B\u200B\u4E00\u4E0B\u200B\u4F60\u200B\u653E\u200B\u5728\u200B\u300C\u8F49\u8B8A\u300D\u200B\u7684\u200B\u5361\u7247\u3002\u200B\u9019\u4E9B\u200B\u8A18\u61B6\u88E1\uFF0C\u200B\u6709\u200B\u6C92\u200B\u6709\u200B\u54EA\u200B\u4E00\u200B\u500B\u200B\u8B93\u200B\u4F60\u200B\u6700\u200B\u80FD\u200B\u611F\u53D7\u200B\u5230\u200B\u300C\u90A3\u200B\u6BB5\u200B\u8F49\u8B8A\u200B\u4E2D\u200B\u7684\u200B\u81EA\u5DF1\u300D\uFF1F\u200B\n\u90A3\u200B\u6BB5\u200B\u6642\u671F\u200B\u5C0D\u200B\u4F60\u200B\u4F86\u8AAA\u200B\u4E3B\u8981\u200B\u662F\u200B\u4EC0\u9EBC\u200B\u72C0\u614B\uFF1F\u200B"
+  m_text: "Look at the cards you placed in \u201CTransition.\u201D Is there one memory
+    that best represents yourself during that transition? What was that period mainly
+    like for you?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -15729,7 +15775,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u73FE\u5728\u7684\u6211"
+  m_text: Present Self
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -15863,7 +15909,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u719F\u6089\u611F"
+  m_text: Familiar Feeling
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -16422,7 +16468,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8ACB\u200B\u628A\u200B\u8B93\u200B\u4F60\u200B\u60F3\u5230\u200B\u6539\u8B8A\u3001\u200B\u96E2\u958B\u3001\u200B\u9069\u61C9\u904E\u7A0B\u3001\u200B\u5931\u53BB\u3001\u200B\u91CD\u65B0\u200B\u958B\u59CB\uFF0C\u200B\u6216\u200B\u67D0\u500B\u200B\u751F\u6D3B\u200B\u8F49\u6298\u200B\u7684\u200B\u8A18\u61B6\u200B\u653E\u200B\u5728\u200B\u9019\u88E1\u3002\u200B"
+  m_text: Place memories here that remind you of change, leaving, adaptation, loss,
+    restarting, or a life transition.
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -16431,8 +16478,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4278190080
-  m_fontColor: {r: 0, g: 0, b: 0, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -16548,7 +16595,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1846092268
 RectTransform:
   m_ObjectHideFlags: 0
@@ -16558,14 +16605,14 @@ RectTransform:
   m_GameObject: {fileID: 1846092267}
   m_LocalRotation: {x: -0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -5}
-  m_LocalScale: {x: 123.10772, y: 40.622967, z: 36.85097}
+  m_LocalScale: {x: 123.10772, y: 40.622967, z: 44.34646}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1386914270}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 10, y: -523.00006}
+  m_AnchoredPosition: {x: 10, y: -555}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &1846092269
@@ -16610,7 +16657,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a5e50532f4b3acf449aa02792717a0b9, type: 2}
+  - {fileID: 2100000, guid: 42e90f338d58beb4eaa509aa9527f5dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -16697,7 +16744,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u5C1A\u672A\u5206\u985E\u5340"
+  m_text: Uncategorized
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -16724,8 +16771,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 27
+  m_fontSizeBase: 27
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -17086,7 +17133,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8FD4\u56DE\u6642\u9593\u7DDA"
+  m_text: Back to Timeline
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -17637,17 +17684,17 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1930780071}
-  m_LocalRotation: {x: -0, y: -0.66725546, z: -0, w: 0.744829}
-  m_LocalPosition: {x: 0, y: 0, z: -1.103}
-  m_LocalScale: {x: 0.0012044801, y: 0.0012044801, z: 0.0012044801}
+  m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
+  m_LocalPosition: {x: 0, y: 0, z: -1.071}
+  m_LocalScale: {x: 0.0014174322, y: 0.0014174322, z: 0.0014174322}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1918693801}
   m_Father: {fileID: 367276565}
-  m_LocalEulerAnglesHint: {x: 0, y: -83.711, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: -0.252, y: 0.456}
+  m_AnchoredPosition: {x: 0.124, y: 0.901}
   m_SizeDelta: {x: 433, y: 244}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!223 &1930780073
@@ -17660,7 +17707,7 @@ Canvas:
   m_Enabled: 1
   serializedVersion: 3
   m_RenderMode: 2
-  m_Camera: {fileID: 963194227}
+  m_Camera: {fileID: 355198956}
   m_PlaneDistance: 100
   m_PixelPerfect: 0
   m_ReceivesEvents: 1
@@ -17777,7 +17824,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -0.0038452148, y: 0}
+  m_AnchoredPosition: {x: 0.053894043, y: 0}
   m_SizeDelta: {x: 0, y: 320}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &1941978296
@@ -17877,7 +17924,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u95DC\u9589"
+  m_text: Close
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -18408,7 +18455,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: 0.00036621094, y: 0}
+  m_AnchoredPosition: {x: 0.009338379, y: 0}
   m_SizeDelta: {x: 0, y: 320}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &2014731704
@@ -18469,7 +18516,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &2018149591
 RectTransform:
   m_ObjectHideFlags: 0
@@ -18479,14 +18526,14 @@ RectTransform:
   m_GameObject: {fileID: 2018149590}
   m_LocalRotation: {x: 0, y: 0.7071068, z: -0.7071068, w: 0}
   m_LocalPosition: {x: 0, y: 0, z: -5}
-  m_LocalScale: {x: 123.10219, y: 40.614384, z: 36.854794}
+  m_LocalScale: {x: 123.10219, y: 40.614384, z: 66.41234}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1301908034}
   m_LocalEulerAnglesHint: {x: 90, y: 180, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0, y: -523}
+  m_AnchoredPosition: {x: -0, y: -672}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!64 &2018149592
@@ -18531,7 +18578,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: a5e50532f4b3acf449aa02792717a0b9, type: 2}
+  - {fileID: 2100000, guid: 42e90f338d58beb4eaa509aa9527f5dd, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -18618,7 +18665,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u964C\u751F\u611F"
+  m_text: Strange Feeling
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
   m_sharedMaterial: {fileID: -609590688845973433, guid: 8902718ec8d12534c9348f81e74240dc, type: 2}
@@ -19121,7 +19168,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u8DE8\u5340\u9023\u7D50"
+  m_text: Cross Link
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -19563,7 +19610,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0.5}
   m_AnchorMax: {x: 0, y: 0.5}
-  m_AnchoredPosition: {x: -0.020446777, y: 0}
+  m_AnchoredPosition: {x: -0.020568848, y: 0}
   m_SizeDelta: {x: 0, y: 320}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &2075800986
@@ -19740,7 +19787,8 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u770B\u200B\u4E00\u4E0B\u200B\u4F60\u200B\u653E\u200B\u5728\u200B\u300C\u904E\u53BB\u300D\u200B\u7684\u200B\u5361\u7247\u3002\u200B\u9019\u4E9B\u200B\u8A18\u61B6\u88E1\uFF0C\u200B\u6709\u200B\u6C92\u200B\u6709\u200B\u54EA\u200B\u4E00\u200B\u5F35\u200B\u6700\u200B\u80FD\u200B\u4EE3\u8868\u200B\u4EE5\u524D\u200B\u7684\u200B\u4F60\uFF1F\u200B\u90A3\u200B\u6642\u5019\u200B\u7684\u200B\u4F60\u200B\u5927\u6982\u200B\u662F\u200B\u4EC0\u9EBC\u200B\u72C0\u614B\uFF1F\u200B"
+  m_text: "Look at the cards you placed in \u201CPast.\u201D Is there one memory
+    that best represents who you were before? What was your state at that time?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -20005,7 +20053,9 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: "\u770B\u200B\u4E00\u4E0B\u200B\u4F60\u200B\u653E\u200B\u5728\u200B\u300C\u73FE\u200B\u5728\u300D\u200B\u7684\u200B\u5361\u7247\u3002\u200B\u9019\u4E9B\u200B\u8A18\u61B6\u88E1\uFF0C\u200B\u6709\u200B\u6C92\u200B\u6709\u200B\u54EA\u200B\u4E00\u200B\u5F35\u200B\u6700\u200B\u8B93\u200B\u4F60\u200B\u89BA\u5F97\u200B\u300C\u9019\u500B\u200B\u90E8\u5206\u200B\u9084\u200B\u5728\u200B\u6211\u200B\u8EAB\u4E0A\u300D\uFF1F\u200B\u5B83\u200B\u73FE\u200B\u5728\u200B\u4EE5\u4EC0\u9EBC\u200B\u65B9\u5F0F\u200B\u7559\u8457\uFF1F\u200B"
+  m_text: "Look at the cards you placed in \u201CPresent.\u201D Is there one memory
+    that makes you feel, \u201Cthis part is still with me\u201D? In what way does
+    it remain with you now?"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
   m_sharedMaterial: {fileID: -5242387125617571739, guid: d52f7464f9db161449cf1a173180dbde, type: 2}
@@ -20249,7 +20299,7 @@ RectTransform:
   m_GameObject: {fileID: 2103130467}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0.2}
-  m_LocalScale: {x: -0.07069252, y: -0.03892564, z: -0.052033354}
+  m_LocalScale: {x: -0.07069252, y: -0.042876594, z: -0.052033354}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1290172432}
@@ -20257,7 +20307,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 8.9, y: 6.78}
+  m_AnchoredPosition: {x: 8.9, y: 7.37}
   m_SizeDelta: {x: 781, y: 439}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2103130469
@@ -20573,7 +20623,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 89e5139852be5dd4b80cb17c3c906a58, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetCamera: {fileID: 963194227}
+  targetCamera: {fileID: 355198956}
   anchorManager: {fileID: 345392358}
   annotationPanel: {fileID: 142661200}
   lineOfLifeManager: {fileID: 57775550}
@@ -20609,6 +20659,8 @@ MonoBehaviour:
   hidePreviewMarkerInExplorationMode: 1
   turnObjectsToEnableInExplorationMode:
   - {fileID: 2109365959}
+  leftModeToggleButton: 4
+  logXRButtonStates: 0
 --- !u!4 &2134111323
 Transform:
   m_ObjectHideFlags: 0
@@ -20681,7 +20733,7 @@ MonoBehaviour:
   switchViewButton: {fileID: 942172887}
   matchRotation: 1
   useSmoothMove: 1
-  smoothMoveDuration: 0.75
+  smoothMoveDuration: 1.5
   hidePromptAfterSwitch: 1
   placePromptInFrontOfPlayer: 1
   promptDistanceFromCamera: 1.2

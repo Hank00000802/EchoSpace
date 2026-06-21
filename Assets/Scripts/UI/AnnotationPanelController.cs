@@ -188,12 +188,12 @@ public class AnnotationPanelController : MonoBehaviour
 
             if (titleText != null)
             {
-                titleText.text = "這個地方讓你想到什麼？";
+                titleText.text = "What does this place remind you of?";
             }
 
             if (promptText != null)
             {
-                promptText.text = "請先選擇一張卡片";
+                promptText.text = "Please select a card first.";
             }
         }
 
@@ -372,7 +372,7 @@ public class AnnotationPanelController : MonoBehaviour
 
         if (titleText != null)
         {
-            titleText.text = "這個地方讓你想到什麼？";
+            titleText.text = "What does this place remind you of?";
         }
 
         if (promptText != null)
@@ -710,22 +710,22 @@ public class AnnotationPanelController : MonoBehaviour
         switch (type)
         {
             case MemoryType.PastLife:
-                return "這​裡讓​你​想到​以前​的​某種​生活、​日常​或​習慣嗎？​​那​時候​的​生活​樣貌​是​什麼​樣子​?";
+                return "Does this place remind you of a past lifestyle, daily routine, or habit? What was life like at that time?";
             case MemoryType.PastSelf:
-                return "這裡​是否​讓​你​想​起​當時​的​自己？​那​時候​的​你​大概​是​什麼​狀態、​感受​或​樣子？​";
+                return "Does this place remind you of who you were at that time? What was your state, feeling, or self-image like?";
             case MemoryType.ConcreteMemory:
-                return "這裡​是否​讓​你​想​起​一​段​具體發生過​的​經驗？​那​件​事​大概​是​什麼樣​?";
+                return "Does this place remind you of a specific experience? What happened?";
             case MemoryType.Relationship:
-                return "​這裡​是否​讓​你​想​起​某​個人​或​一段​關係？​ 這個人​或​這段​關係​和​這裡​有​什麼樣​的​關聯​嗎?";
+                return "Does this place remind you of a person or a relationship? How is that person or relationship connected to this place?";
             case MemoryType.TransitionMoment:
-                return "這裡讓​你​想到​某次​改變、​離開、​適應​的​過程​或​轉折嗎？​那​次​轉變​大概​和​什麼​有​關?​";
+                return "Does this place remind you of a change, departure, adaptation process, or turning point? What was that transition related to?";
             case MemoryType.FamiliarFeeling:
-                return "這裡​是否​讓​你​感到​熟悉？​這種熟悉​感來​自什​麼?";
+                return "Does this place feel familiar to you? Where does this familiarity come from?";
             case MemoryType.StrangeFeeling:
-                return "這​裡讓​你​感到​陌生、​有​距離​或​不​太​一​樣​嗎？​這種​感覺​來​自什​麼?";
+                return "Does this place feel unfamiliar, distant, or different to you? Where does that feeling come from?";
             case MemoryType.Uncertain:
             default:
-                return "你​是否​還​不​確定​這裡​代表​什麼，​但​仍​想​先​標記​下來？​ ​你​可以​留下​一​個​關​鍵字​或​一句​簡短​描述。​";
+                return "Are you still unsure what this place means, but would like to mark it first? You may leave a keyword or a short description.";
         }
     }
 }

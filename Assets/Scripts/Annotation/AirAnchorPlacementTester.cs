@@ -16,6 +16,21 @@ namespace EchoSpace.Annotation
         Exploration
     }
 
+    public enum XRBoolButtonUsage
+    {
+        PrimaryButton,
+        SecondaryButton,
+        GripButton,
+        TriggerButton,
+        MenuButton,
+        PrimaryTouch,
+        SecondaryTouch,
+        Primary2DAxisClick,
+        Secondary2DAxisClick,
+        Primary2DAxisTouch,
+        Secondary2DAxisTouch
+    }
+
     public class AirAnchorPlacementTester : MonoBehaviour
     {
         public Camera targetCamera;
@@ -63,12 +78,36 @@ namespace EchoSpace.Annotation
         [Tooltip("Drag XR Origin/Locomotion/Turn or SnapTurn/ContinuousTurn objects here.")]
         public GameObject[] turnObjectsToEnableInExplorationMode;
 
+        [Header("XR Mode Button Mapping")]
+        public XRBoolButtonUsage leftModeToggleButton = XRBoolButtonUsage.PrimaryButton;
+
+        [Header("XR Button Debug")]
+        public bool logXRButtonStates = false;
+
         private bool _warnedMissingCamera;
         private bool _warnedMissingAnchorManager;
         private bool _warnedMissingPreviewMarker;
         private bool _warnedMissingControllerRayOrigin;
         private bool _xrTriggerWasPressed;
-        private bool _leftXWasPressed;
+        private bool _leftModeToggleWasPressed;
+        private bool _debugLeftPrimary;
+        private bool _debugLeftSecondary;
+        private bool _debugLeftGrip;
+        private bool _debugLeftTrigger;
+        private bool _debugLeftMenu;
+        private bool _debugRightPrimary;
+        private bool _debugRightSecondary;
+        private bool _debugRightGrip;
+        private bool _debugRightTrigger;
+        private bool _debugRightMenu;
+        private bool _debugLeftPrimary2DAxisClick;
+        private bool _debugLeftSecondary2DAxisClick;
+        private bool _debugLeftPrimary2DAxisTouch;
+        private bool _debugLeftSecondary2DAxisTouch;
+        private bool _debugRightPrimary2DAxisClick;
+        private bool _debugRightSecondary2DAxisClick;
+        private bool _debugRightPrimary2DAxisTouch;
+        private bool _debugRightSecondary2DAxisTouch;
 
         private void OnEnable()
         {
@@ -123,10 +162,17 @@ namespace EchoSpace.Annotation
                 }
             }
 
+            if (logXRButtonStates)
+            {
+                UpdateXRButtonDebugProbe();
+            }
+
             if (useXRControllerFreePlacement)
             {
-                if (enableXRModeSwitch && GetLeftPrimaryButtonDown())
+                if (enableXRModeSwitch && GetLeftModeToggleButtonDown())
                 {
+                    Debug.Log("[AirAnchorPlacementTester] Left mode toggle button pressed: " + leftModeToggleButton);
+
                     if (IsMarkerBlockedBySystem())
                     {
                         SwitchToExplorationIfMarkerBlocked("marker blocked when pressing X");
@@ -327,7 +373,7 @@ namespace EchoSpace.Annotation
 
             if (!Mathf.Approximately(previousDistance, markerDistance))
             {
-                Debug.Log("[AirAnchorPlacementTester] XR marker distance: " + markerDistance);
+                //Debug.Log("[AirAnchorPlacementTester] XR marker distance: " + markerDistance);
             }
         }
 
@@ -570,20 +616,24 @@ namespace EchoSpace.Annotation
             }
         }
 
-        private bool GetLeftPrimaryButtonDown()
+        private bool GetLeftModeToggleButtonDown()
         {
-            bool pressed = GetLeftControllerButton(CommonUsages.primaryButton);
-            bool down = pressed && !_leftXWasPressed;
-            _leftXWasPressed = pressed;
+            bool pressed = GetControllerButton(InputDeviceCharacteristics.Left, leftModeToggleButton);
+            bool down = pressed && !_leftModeToggleWasPressed;
+            _leftModeToggleWasPressed = pressed;
             return down;
         }
 
-        private bool GetLeftControllerButton(InputFeatureUsage<bool> usage)
+        private bool GetControllerButton(
+            InputDeviceCharacteristics hand,
+            XRBoolButtonUsage buttonUsage)
         {
             var devices = new List<InputDevice>();
             InputDevices.GetDevicesWithCharacteristics(
-                InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Left,
+                InputDeviceCharacteristics.Controller | hand,
                 devices);
+
+            InputFeatureUsage<bool> usage = GetBoolUsage(buttonUsage);
 
             foreach (InputDevice device in devices)
             {
@@ -594,6 +644,123 @@ namespace EchoSpace.Annotation
             }
 
             return false;
+        }
+
+        private static InputFeatureUsage<bool> GetBoolUsage(XRBoolButtonUsage buttonUsage)
+        {
+            switch (buttonUsage)
+            {
+                case XRBoolButtonUsage.PrimaryButton:
+                    return CommonUsages.primaryButton;
+                case XRBoolButtonUsage.SecondaryButton:
+                    return CommonUsages.secondaryButton;
+                case XRBoolButtonUsage.GripButton:
+                    return CommonUsages.gripButton;
+                case XRBoolButtonUsage.TriggerButton:
+                    return CommonUsages.triggerButton;
+                case XRBoolButtonUsage.MenuButton:
+                    return CommonUsages.menuButton;
+                case XRBoolButtonUsage.PrimaryTouch:
+                    return CommonUsages.primaryTouch;
+                case XRBoolButtonUsage.SecondaryTouch:
+                    return CommonUsages.secondaryTouch;
+                case XRBoolButtonUsage.Primary2DAxisClick:
+                    return CommonUsages.primary2DAxisClick;
+                case XRBoolButtonUsage.Secondary2DAxisClick:
+                    return CommonUsages.secondary2DAxisClick;
+                case XRBoolButtonUsage.Primary2DAxisTouch:
+                    return CommonUsages.primary2DAxisTouch;
+                case XRBoolButtonUsage.Secondary2DAxisTouch:
+                    return CommonUsages.secondary2DAxisTouch;
+                default:
+                    return CommonUsages.primaryButton;
+            }
+        }
+
+        private void UpdateXRButtonDebugProbe()
+        {
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.PrimaryButton, ref _debugLeftPrimary);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.SecondaryButton, ref _debugLeftSecondary);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.GripButton, ref _debugLeftGrip);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.TriggerButton, ref _debugLeftTrigger);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.MenuButton, ref _debugLeftMenu);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.Primary2DAxisClick, ref _debugLeftPrimary2DAxisClick);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.Secondary2DAxisClick, ref _debugLeftSecondary2DAxisClick);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.Primary2DAxisTouch, ref _debugLeftPrimary2DAxisTouch);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Left, "Left", XRBoolButtonUsage.Secondary2DAxisTouch, ref _debugLeftSecondary2DAxisTouch);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.PrimaryButton, ref _debugRightPrimary);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.SecondaryButton, ref _debugRightSecondary);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.GripButton, ref _debugRightGrip);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.TriggerButton, ref _debugRightTrigger);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.MenuButton, ref _debugRightMenu);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.Primary2DAxisClick, ref _debugRightPrimary2DAxisClick);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.Secondary2DAxisClick, ref _debugRightSecondary2DAxisClick);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.Primary2DAxisTouch, ref _debugRightPrimary2DAxisTouch);
+            ProbeControllerButtonEdge(
+                InputDeviceCharacteristics.Right, "Right", XRBoolButtonUsage.Secondary2DAxisTouch, ref _debugRightSecondary2DAxisTouch);
+        }
+
+        private void ProbeControllerButtonEdge(
+            InputDeviceCharacteristics hand,
+            string handLabel,
+            XRBoolButtonUsage buttonUsage,
+            ref bool previousPressed)
+        {
+            bool pressed = GetControllerButton(hand, buttonUsage);
+            if (pressed && !previousPressed)
+            {
+                Debug.Log("[XRButtonDebug] " + handLabel + " " + GetUsageDebugName(buttonUsage) + " pressed");
+            }
+
+            previousPressed = pressed;
+        }
+
+        private static string GetUsageDebugName(XRBoolButtonUsage buttonUsage)
+        {
+            switch (buttonUsage)
+            {
+                case XRBoolButtonUsage.PrimaryButton:
+                    return "primaryButton";
+                case XRBoolButtonUsage.SecondaryButton:
+                    return "secondaryButton";
+                case XRBoolButtonUsage.GripButton:
+                    return "gripButton";
+                case XRBoolButtonUsage.TriggerButton:
+                    return "triggerButton";
+                case XRBoolButtonUsage.MenuButton:
+                    return "menuButton";
+                case XRBoolButtonUsage.PrimaryTouch:
+                    return "primaryTouch";
+                case XRBoolButtonUsage.SecondaryTouch:
+                    return "secondaryTouch";
+                case XRBoolButtonUsage.Primary2DAxisClick:
+                    return "primary2DAxisClick";
+                case XRBoolButtonUsage.Secondary2DAxisClick:
+                    return "secondary2DAxisClick";
+                case XRBoolButtonUsage.Primary2DAxisTouch:
+                    return "primary2DAxisTouch";
+                case XRBoolButtonUsage.Secondary2DAxisTouch:
+                    return "secondary2DAxisTouch";
+                default:
+                    return buttonUsage.ToString();
+            }
         }
 
         private bool IsPointerOverBlockingUI()

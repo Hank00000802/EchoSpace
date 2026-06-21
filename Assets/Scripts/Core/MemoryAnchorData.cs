@@ -22,22 +22,22 @@ namespace EchoSpace.Core
             switch (type)
             {
                 case MemoryType.PastLife:
-                    return "過去生活";
+                    return "Past Life";
                 case MemoryType.PastSelf:
-                    return "過去自己";
+                    return "Past Self";
                 case MemoryType.ConcreteMemory:
-                    return "具體記憶";
+                    return "Specific Memory";
                 case MemoryType.Relationship:
-                    return "關係";
+                    return "Relationship";
                 case MemoryType.TransitionMoment:
-                    return "轉折時刻";
+                    return "Transition Moment";
                 case MemoryType.FamiliarFeeling:
-                    return "熟悉感覺";
+                    return "Familiar Feeling";
                 case MemoryType.StrangeFeeling:
-                    return "陌生感覺";
+                    return "Strange Feeling";
                 case MemoryType.Uncertain:
                 default:
-                    return "不確定";
+                    return "Uncertain";
             }
         }
     }

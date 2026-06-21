@@ -49,7 +49,7 @@ namespace EchoSpace.Reflection
 
             if (titleText != null)
             {
-                titleText.text = "整理摘要";
+                titleText.text = "Reflection Summary";
             }
 
             if (summaryText != null)

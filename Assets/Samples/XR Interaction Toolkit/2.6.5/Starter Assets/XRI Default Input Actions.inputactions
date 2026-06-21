@@ -2730,6 +2730,34 @@
                     "isPartOfComposite": true
                 }
             ]
+        },
+        {
+            "name": "EchoSpace",
+            "id": "a963e3cc-946d-46fa-bc6e-aa50b61ce78b",
+            "actions": [
+                {
+                    "name": "Toggle3DView",
+                    "type": "Button",
+                    "id": "b6fdbcdb-ebcc-4c00-85be-acdae17b6ab8",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                {
+                    "name": "",
+                    "id": "3098ed24-5802-42a3-bea5-497b7ac2193c",
+                    "path": "<XRController>{RightHand}/{SecondaryButton}",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Toggle3DView",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                }
+            ]
         }
     ],
     "controlSchemes": [

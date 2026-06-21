@@ -25,7 +25,7 @@ namespace EchoSpace.LineOfLife
 
                 if (contentText != null)
                 {
-                    contentText.text = "(尚未輸入)";
+                    contentText.text = "(No text entered)";
                 }
 
                 return;
@@ -46,7 +46,7 @@ namespace EchoSpace.LineOfLife
         {
             if (string.IsNullOrEmpty(userText))
             {
-                return "(尚未輸入)";
+                return "(No text entered)";
             }
 
             if (userText.Length <= MaxUserTextLength)

@@ -33,7 +33,11 @@ namespace EchoSpace.LineOfLife
         [Header("XR Controller Toggle")]
         public bool enableXRControllerToggle = true;
         public bool useRightAButtonForLineOfLifePanel = true;
-        private bool _rightAWasPressed;
+
+        [Header("XR Button Mapping")]
+        public XRBoolButtonUsage rightLineOfLifeToggleButton = XRBoolButtonUsage.PrimaryButton;
+
+        private bool _rightLineOfLifeToggleWasPressed;
 
         public bool IsOpen =>
             lineOfLifePanel != null && lineOfLifePanel.activeSelf;
@@ -55,27 +59,31 @@ namespace EchoSpace.LineOfLife
                 TogglePanel();
             }
 
-            if (enableXRControllerToggle && useRightAButtonForLineOfLifePanel && GetRightPrimaryButtonDown())
+            if (enableXRControllerToggle && useRightAButtonForLineOfLifePanel && GetRightLineOfLifeToggleButtonDown())
             {
-                Debug.Log("[LineOfLifeManager] Right A button toggle LineOfLifePanel.");
+                Debug.Log("[LineOfLifeManager] Right button toggle LineOfLifePanel: " + rightLineOfLifeToggleButton);
                 TogglePanel();
             }
         }
 
-        private bool GetRightPrimaryButtonDown()
+        private bool GetRightLineOfLifeToggleButtonDown()
         {
-            bool pressed = GetRightControllerButton(CommonUsages.primaryButton);
-            bool down = pressed && !_rightAWasPressed;
-            _rightAWasPressed = pressed;
+            bool pressed = GetControllerButton(InputDeviceCharacteristics.Right, rightLineOfLifeToggleButton);
+            bool down = pressed && !_rightLineOfLifeToggleWasPressed;
+            _rightLineOfLifeToggleWasPressed = pressed;
             return down;
         }
 
-        private bool GetRightControllerButton(InputFeatureUsage<bool> usage)
+        private bool GetControllerButton(
+            InputDeviceCharacteristics hand,
+            XRBoolButtonUsage buttonUsage)
         {
             var devices = new List<InputDevice>();
             InputDevices.GetDevicesWithCharacteristics(
-                InputDeviceCharacteristics.Controller | InputDeviceCharacteristics.Right,
+                InputDeviceCharacteristics.Controller | hand,
                 devices);
+
+            InputFeatureUsage<bool> usage = GetBoolUsage(buttonUsage);
 
             foreach (InputDevice device in devices)
             {
@@ -86,6 +94,37 @@ namespace EchoSpace.LineOfLife
             }
 
             return false;
+        }
+
+        private static InputFeatureUsage<bool> GetBoolUsage(XRBoolButtonUsage buttonUsage)
+        {
+            switch (buttonUsage)
+            {
+                case XRBoolButtonUsage.PrimaryButton:
+                    return CommonUsages.primaryButton;
+                case XRBoolButtonUsage.SecondaryButton:
+                    return CommonUsages.secondaryButton;
+                case XRBoolButtonUsage.GripButton:
+                    return CommonUsages.gripButton;
+                case XRBoolButtonUsage.TriggerButton:
+                    return CommonUsages.triggerButton;
+                case XRBoolButtonUsage.MenuButton:
+                    return CommonUsages.menuButton;
+                case XRBoolButtonUsage.PrimaryTouch:
+                    return CommonUsages.primaryTouch;
+                case XRBoolButtonUsage.SecondaryTouch:
+                    return CommonUsages.secondaryTouch;
+                case XRBoolButtonUsage.Primary2DAxisClick:
+                    return CommonUsages.primary2DAxisClick;
+                case XRBoolButtonUsage.Secondary2DAxisClick:
+                    return CommonUsages.secondary2DAxisClick;
+                case XRBoolButtonUsage.Primary2DAxisTouch:
+                    return CommonUsages.primary2DAxisTouch;
+                case XRBoolButtonUsage.Secondary2DAxisTouch:
+                    return CommonUsages.secondary2DAxisTouch;
+                default:
+                    return CommonUsages.primaryButton;
+            }
         }
 
         public void TogglePanel()
@@ -285,15 +324,15 @@ namespace EchoSpace.LineOfLife
         public string BuildLineOfLifeSummary()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("你剛剛整理了以下記憶：");
+            sb.AppendLine("You have organized the following memories:");
             sb.AppendLine();
 
             if (anchorManager == null)
             {
-                AppendSummarySection(sb, "【過去的我】", null);
-                AppendSummarySection(sb, "【轉變中的我】", null);
-                AppendSummarySection(sb, "【現在的我】", null);
-                AppendSummarySection(sb, "【尚未分類】", null);
+                AppendSummarySection(sb, "[Past Self]", null);
+                AppendSummarySection(sb, "[Self in Transition]", null);
+                AppendSummarySection(sb, "[Present Self]", null);
+                AppendSummarySection(sb, "[Uncategorized]", null);
                 return sb.ToString().TrimEnd();
             }
 
@@ -333,10 +372,10 @@ namespace EchoSpace.LineOfLife
                 }
             }
 
-            AppendSummarySection(sb, "【過去的我】", past);
-            AppendSummarySection(sb, "【轉變中的我】", transition);
-            AppendSummarySection(sb, "【現在的我】", present);
-            AppendSummarySection(sb, "【尚未分類】", unclassified);
+            AppendSummarySection(sb, "[Past Self]", past);
+            AppendSummarySection(sb, "[Self in Transition]", transition);
+            AppendSummarySection(sb, "[Present Self]", present);
+            AppendSummarySection(sb, "[Uncategorized]", unclassified);
 
             return sb.ToString().TrimEnd();
         }
@@ -455,7 +494,7 @@ namespace EchoSpace.LineOfLife
             sb.AppendLine(sectionTitle);
             if (items == null || items.Count == 0)
             {
-                sb.AppendLine("（無）");
+                sb.AppendLine("(None)");
                 sb.AppendLine();
                 return;
             }
@@ -468,7 +507,7 @@ namespace EchoSpace.LineOfLife
                 }
 
                 string userPart = string.IsNullOrEmpty(data.userText)
-                    ? "(尚未輸入文字)"
+                    ? "(No text entered yet)"
                     : data.userText;
                 sb.Append("- ");
                 sb.Append(MemoryTypeDisplay.GetDisplayName(data.memoryType));
@@ -508,11 +547,11 @@ namespace EchoSpace.LineOfLife
         {
             if (data == null)
             {
-                return "Unknown: (尚未輸入文字)";
+                return "Unknown: (No text entered yet)";
             }
 
             string shortUserText = string.IsNullOrEmpty(data.userText)
-                ? "(尚未輸入文字)"
+                ? "(No text entered yet)"
                 : (data.userText.Length > 30 ? data.userText.Substring(0, 30) + "..." : data.userText);
 
             return MemoryTypeDisplay.GetDisplayName(data.memoryType) + ": " + shortUserText;

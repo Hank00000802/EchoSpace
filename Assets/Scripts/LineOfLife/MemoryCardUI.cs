@@ -280,7 +280,7 @@ namespace EchoSpace.LineOfLife
         {
             if (anchorData == null || string.IsNullOrEmpty(anchorData.userText))
             {
-                return "(尚未輸入文字)";
+                return "(No text entered yet)";
             }
 
             string text = anchorData.userText;

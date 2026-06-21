@@ -28,12 +28,12 @@ public class XRHeightAdjuster : MonoBehaviour
     {
         if (cameraOffset == null) return;
 
-        if (Input.GetKey(KeyCode.UpArrow))
+        if (Input.GetKey(KeyCode.Q))
         {
             AdjustHeight(speed * Time.deltaTime);
         }
 
-        if (Input.GetKey(KeyCode.DownArrow))
+        if (Input.GetKey(KeyCode.E))
         {
             AdjustHeight(-speed * Time.deltaTime);
         }
