@@ -36,3 +36,6 @@ sysinfo.txt
 *.exe
 *.zip
 *.ply
+
+# Large 3DGS splat data — host separately
+Assets/GaussianAssets/**/*.bytes
