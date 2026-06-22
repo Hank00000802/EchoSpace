@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33b71fae31e6c7d438e8566dc713e666, type: 3}
+  m_Name: exports-room01_test01-smoke_20260428-splat
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 65553
+  m_BoundsMin: {x: -3.4817817, y: -3.17521, z: -3.8128302}
+  m_BoundsMax: {x: 2.681675, y: 4.3603015, z: 0.8142014}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: 57dcfd767082d83cc2570426ae365448
+  m_PosFormat: 2
+  m_ScaleFormat: 2
+  m_SHFormat: 3
+  m_ColorFormat: 2
+  m_PosData: {fileID: 4900000, guid: 7861d252cdc13744abd052f4d5e25771, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 5323fa1b1133b5d44a024f6b6616fa36, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 3c088f88e36ea704fafa2bec9bef3714, type: 3}
+  m_SHData: {fileID: 4900000, guid: e7a8d458e5ebd0942a6fb8a66a2612b5, type: 3}
+  m_ChunkData: {fileID: 4900000, guid: 105dc517b6133f5419ab34440b8fda8c, type: 3}
+  m_Cameras: []

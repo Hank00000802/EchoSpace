@@ -250,7 +250,7 @@
       "url": "https://packages.unity.com"
     },
     "org.nesnausk.gaussian-splatting": {
-      "version": "file:C:/Users/user/Desktop/TXTsai_EchoSpace/Thesis/system/VR/UnityGaussianSplatting/UnityGaussianSplatting/package",
+      "version": "file:../External/UnityGaussianSplatting/package",
       "depth": 0,
       "source": "local",
       "dependencies": {

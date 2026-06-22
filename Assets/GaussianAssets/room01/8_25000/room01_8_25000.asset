@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33b71fae31e6c7d438e8566dc713e666, type: 3}
+  m_Name: room01_8_25000
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 979692
+  m_BoundsMin: {x: -24.7047, y: -13.649772, z: -33.079754}
+  m_BoundsMax: {x: 24.475805, y: 41.65441, z: 15.242665}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: c5f408c413d76bd512379d1186cadb67
+  m_PosFormat: 0
+  m_ScaleFormat: 0
+  m_SHFormat: 0
+  m_ColorFormat: 0
+  m_PosData: {fileID: 4900000, guid: 48d20f502d858b744836a9c6c7004a7d, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 739a48a2f1c74c049a862c5bd4d96d5e, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 39186ca8237623b4f9a890a148fe0798, type: 3}
+  m_SHData: {fileID: 4900000, guid: 6189e4a0f6a16b043aaf65f0a6ccec54, type: 3}
+  m_ChunkData: {fileID: 0}
+  m_Cameras: []

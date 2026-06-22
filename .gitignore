@@ -37,5 +37,4 @@ sysinfo.txt
 *.zip
 *.ply
 
-# Large 3DGS splat data — host separately
-Assets/GaussianAssets/**/*.bytes
+# 3DGS splat binary data is tracked via Git LFS (see .gitattributes)
