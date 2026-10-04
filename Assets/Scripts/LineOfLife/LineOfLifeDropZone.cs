@@ -57,6 +57,13 @@ namespace EchoSpace.LineOfLife
             }
 
             Transform targetContainer = cardContainer != null ? cardContainer : transform;
+            string id = card.Data.id ?? "(no id)";
+
+            if (targetContainer == null)
+            {
+                Debug.LogError("[MemoryCardDrag] ERROR parent null / card inactive card=" + id);
+                return;
+            }
 
             if (manager != null)
             {
@@ -64,12 +71,24 @@ namespace EchoSpace.LineOfLife
             }
             else
             {
-                card.Data.timeCategory = category;
                 card.SetParentAndReset(targetContainer);
+                if (card.transform.parent != targetContainer)
+                {
+                    Debug.LogError("[MemoryCardDrag] ERROR parent null / card inactive card=" + id);
+                    card.RestoreToOriginal();
+                    return;
+                }
+
+                card.Data.timeCategory = category;
                 card.NotifyDropAccepted();
             }
 
-            string id = card.Data.id ?? "(no id)";
+            if (!card.DropAccepted)
+            {
+                return;
+            }
+
+            Debug.Log("[MemoryCardDrag] Drop valid zone=" + category + " card=" + id);
             Debug.Log("[LineOfLifeDropZone] Drop card to category: " + category + " (id=" + id + ")");
         }
 

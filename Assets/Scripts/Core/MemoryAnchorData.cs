@@ -22,22 +22,22 @@ namespace EchoSpace.Core
             switch (type)
             {
                 case MemoryType.PastLife:
-                    return "Past Life";
+                    return "過去生活";
                 case MemoryType.PastSelf:
-                    return "Past Self";
+                    return "過往自己";
                 case MemoryType.ConcreteMemory:
-                    return "Specific Memory";
+                    return "具體回憶";
                 case MemoryType.Relationship:
-                    return "Relationship";
+                    return "一段關係";
                 case MemoryType.TransitionMoment:
-                    return "Transition Moment";
+                    return "過渡時刻";
                 case MemoryType.FamiliarFeeling:
-                    return "Familiar Feeling";
+                    return "熟悉感";
                 case MemoryType.StrangeFeeling:
-                    return "Strange Feeling";
+                    return "陌生感";
                 case MemoryType.Uncertain:
                 default:
-                    return "Uncertain";
+                    return "不確定";
             }
         }
     }
@@ -67,7 +67,7 @@ namespace EchoSpace.Core
             return new MemoryAnchorData
             {
                 id = Guid.NewGuid().ToString("N").Substring(0, 8),
-                locationName = "Memory Point",
+                locationName = "記憶錨點",
                 worldPosition = worldPosition,
                 memoryType = MemoryType.Uncertain,
                 promptQuestion = string.Empty,

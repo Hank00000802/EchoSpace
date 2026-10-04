@@ -269,3 +269,19 @@ git submodule update --init --recursive
 * EchoSpace project code: per repository license
 * [UnityGaussianSplatting](https://github.com/aras-p/UnityGaussianSplatting): MIT (splat training data may have separate academic/commercial restrictions)
 * [FREE Stylized PBR Textures Pack](https://assetstore.unity.com/packages/2d/textures-materials/free-stylized-pbr-textures-pack-111778): Unity Asset Store Standard EULA
+
+## 語音輸入-Server
+
+```powershell
+cd tools\stt_proxy
+
+.\.venv\Scripts\activate
+
+uvicorn server:app --host 127.0.0.1 --port 8000
+
+#去確認http://127.0.0.1:8000/health
+
+#`{"status":"ok","model":"gpt-4o-mini-transcribe"}`
+
+#http://127.0.0.1:8000/transcribe 是可以看轉譯的結果
+```

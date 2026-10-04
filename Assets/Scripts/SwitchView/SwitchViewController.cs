@@ -1,6 +1,8 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
+using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace EchoSpace.SwitchView
 {
@@ -26,7 +28,7 @@ namespace EchoSpace.SwitchView
         public bool matchRotation = true;
         public bool useSmoothMove = false;
         public float smoothMoveDuration = 0.75f;
-        public bool hidePromptAfterSwitch = false;
+        public bool hidePromptAfterSwitch = true;
 
         [Header("Prompt Placement")]
         public bool placePromptInFrontOfPlayer = true;
@@ -35,6 +37,9 @@ namespace EchoSpace.SwitchView
         public bool promptFaceCamera = true;
         public bool promptLockYOnly = true;
         public bool promptFlip180 = true;
+
+        [Header("Switch Completed Event")]
+        public UnityEvent onSwitchCompleted;
 
         private Coroutine smoothMoveCoroutine;
 
@@ -57,6 +62,77 @@ namespace EchoSpace.SwitchView
             }
         }
 
+        private void EnsureSwitchViewUiRaycast()
+        {
+            if (switchViewRoot == null)
+            {
+                return;
+            }
+
+            Canvas canvas = switchViewRoot.GetComponent<Canvas>();
+            if (canvas == null)
+            {
+                canvas = switchViewRoot.GetComponentInChildren<Canvas>(true);
+            }
+
+            if (canvas == null)
+            {
+                Debug.LogWarning("[SwitchViewController] No Canvas under switchViewRoot; XR rays cannot hit SwitchButton.");
+                return;
+            }
+
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.overrideSorting = true;
+            if (canvas.sortingOrder < 1300)
+            {
+                canvas.sortingOrder = 1300;
+            }
+
+            EnsurePlayerCamera();
+            if (playerCamera != null)
+            {
+                Camera cam = playerCamera.GetComponent<Camera>();
+                if (cam != null)
+                {
+                    canvas.worldCamera = cam;
+                }
+            }
+
+            GraphicRaycaster graphicRaycaster = canvas.GetComponent<GraphicRaycaster>();
+            if (graphicRaycaster == null)
+            {
+                graphicRaycaster = canvas.gameObject.AddComponent<GraphicRaycaster>();
+            }
+
+            graphicRaycaster.ignoreReversedGraphics = false;
+            graphicRaycaster.blockingObjects = GraphicRaycaster.BlockingObjects.None;
+
+            TrackedDeviceGraphicRaycaster trackedRaycaster = canvas.GetComponent<TrackedDeviceGraphicRaycaster>();
+            if (trackedRaycaster == null)
+            {
+                trackedRaycaster = canvas.gameObject.AddComponent<TrackedDeviceGraphicRaycaster>();
+            }
+
+            trackedRaycaster.ignoreReversedGraphics = false;
+            trackedRaycaster.checkFor3DOcclusion = false;
+
+            if (switchViewButton != null)
+            {
+                switchViewButton.interactable = true;
+                Graphic graphic = switchViewButton.targetGraphic;
+                if (graphic == null)
+                {
+                    graphic = switchViewButton.GetComponent<Image>();
+                    switchViewButton.targetGraphic = graphic;
+                }
+
+                if (graphic != null)
+                {
+                    graphic.raycastTarget = true;
+                }
+            }
+        }
+
         public void ShowSwitchViewPrompt()
         {
             if (switchViewRoot == null)
@@ -73,6 +149,7 @@ namespace EchoSpace.SwitchView
             }
 
             switchViewRoot.SetActive(true);
+            EnsureSwitchViewUiRaycast();
             Debug.Log("[SwitchViewController] Show switch view prompt.");
         }
 
@@ -230,10 +307,10 @@ namespace EchoSpace.SwitchView
         {
             Debug.Log("[SwitchViewController] Switched to target view: " + targetViewTransform.name);
 
-            if (hidePromptAfterSwitch)
-            {
-                HideSwitchViewPrompt();
-            }
+            // Always hide large Switch View UI after arriving, to protect immersion.
+            HideSwitchViewPrompt();
+
+            onSwitchCompleted?.Invoke();
         }
 
         private static Vector3 GetHorizontalForward(Vector3 forward)

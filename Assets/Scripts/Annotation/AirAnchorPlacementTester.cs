@@ -108,6 +108,8 @@ namespace EchoSpace.Annotation
         private bool _debugRightSecondary2DAxisClick;
         private bool _debugRightPrimary2DAxisTouch;
         private bool _debugRightSecondary2DAxisTouch;
+        private bool _annotationPanelWasOpen;
+        private bool _pointerWasOverAnnotationPanel;
 
         private void OnEnable()
         {
@@ -169,24 +171,60 @@ namespace EchoSpace.Annotation
 
             if (useXRControllerFreePlacement)
             {
-                if (enableXRModeSwitch && GetLeftModeToggleButtonDown())
-                {
-                    Debug.Log("[AirAnchorPlacementTester] Left mode toggle button pressed: " + leftModeToggleButton);
+                bool tutorialMode = EchoSpace.UI.ControllerTutorialGate.IsBlockingGameplay;
 
-                    if (IsMarkerBlockedBySystem())
+                if (enableXRModeSwitch)
+                {
+                    bool leftModeDown = GetLeftModeToggleButtonDown();
+                    if (!tutorialMode && leftModeDown)
                     {
-                        SwitchToExplorationIfMarkerBlocked("marker blocked when pressing X");
-                    }
-                    else
-                    {
-                        ToggleXRInteractionMode();
+                        Debug.Log("[AirAnchorPlacementTester] Left mode toggle button pressed: " + leftModeToggleButton);
+
+                        if (IsMarkerBlockedBySystem())
+                        {
+                            SwitchToExplorationIfMarkerBlocked("marker blocked when pressing X");
+                        }
+                        else if (IsAnnotationPanelOpen() && IsPointerOverAnnotationPanel())
+                        {
+                            Debug.Log("[AirAnchorPlacement] Ray on AnnotationPanel, keep Exploration for UI.");
+                        }
+                        else
+                        {
+                            ToggleXRInteractionMode();
+                        }
                     }
                 }
 
+                if (tutorialMode)
+                {
+                    GetXRPlaceInputDown();
+                    if (previewMarker != null)
+                    {
+                        previewMarker.SetActive(false);
+                    }
+
+                    _annotationPanelWasOpen = IsAnnotationPanelOpen();
+                    return;
+                }
+
+                RestoreMarkingIfAnnotationPanelJustClosed();
+
                 if (IsMarkerBlockedBySystem())
                 {
+                    GetXRPlaceInputDown();
                     SwitchToExplorationIfMarkerBlocked("marker blocked by system state");
                     return;
+                }
+
+                if (IsAnnotationPanelOpen())
+                {
+                    UpdateAnnotationPanelPointerMode();
+                    if (currentXRMode == XRInteractionMode.Exploration)
+                    {
+                        GetXRPlaceInputDown();
+                        HidePreviewMarker();
+                        return;
+                    }
                 }
 
                 if (currentXRMode == XRInteractionMode.Marking)
@@ -215,43 +253,59 @@ namespace EchoSpace.Annotation
 
             if (lineOfLifeManager != null && lineOfLifeManager.IsOpen)
             {
-                previewMarker.SetActive(false);
+                HidePreviewMarker();
                 return;
             }
 
             if (reflectionSummaryController != null && reflectionSummaryController.IsOpen)
             {
-                previewMarker.SetActive(false);
+                HidePreviewMarker();
                 return;
             }
 
-            if (annotationPanel != null && annotationPanel.IsOpen)
+            if (IsAnnotationPanelOpen() && IsPointerOverAnnotationPanel())
             {
-                previewMarker.SetActive(false);
+                HidePreviewMarker();
                 return;
             }
 
             UpdateMouseMode();
         }
 
-        private bool IsMarkerBlockedBySystem()
+        public bool IsAnnotationPanelOpen()
         {
-            if (!placementActive)
-            {
-                return true;
-            }
+            return annotationPanel != null && annotationPanel.IsOpen;
+        }
 
-            if (annotationPanel != null && annotationPanel.IsOpen)
-            {
-                return true;
-            }
-
+        public bool IsAnyBlockingPanelOpen()
+        {
             if (lineOfLifeManager != null && lineOfLifeManager.IsOpen)
             {
                 return true;
             }
 
             if (reflectionSummaryController != null && reflectionSummaryController.IsOpen)
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsMarkerBlockedBySystem()
+        {
+            // Intro owns right-trigger skip + exploration-only; block annotate/marking.
+            if (EchoSpace.UI.VRIntroGuideController.IsIntroActive)
+            {
+                return true;
+            }
+
+            if (!placementActive)
+            {
+                return true;
+            }
+
+            if (IsAnyBlockingPanelOpen())
             {
                 return true;
             }
@@ -264,18 +318,116 @@ namespace EchoSpace.Annotation
             return false;
         }
 
-        private void SwitchToExplorationIfMarkerBlocked(string reason)
+        private void RestoreMarkingIfAnnotationPanelJustClosed()
         {
-            if (currentXRMode != XRInteractionMode.Exploration)
+            bool panelOpen = IsAnnotationPanelOpen();
+            if (_annotationPanelWasOpen && !panelOpen && !IsMarkerBlockedBySystem())
             {
-                SetXRInteractionMode(XRInteractionMode.Exploration);
-                Debug.Log("[AirAnchorPlacementTester] Auto switch to Exploration because: " + reason);
+                GetXRPlaceInputDown();
+                SetXRInteractionMode(XRInteractionMode.Marking);
+                Debug.Log("[AirAnchorPlacement] AnnotationPanel closed, keep marking mode.");
             }
 
+            if (!panelOpen)
+            {
+                _pointerWasOverAnnotationPanel = false;
+            }
+
+            _annotationPanelWasOpen = panelOpen;
+        }
+
+        private void UpdateAnnotationPanelPointerMode()
+        {
+            bool overPanel = IsPointerOverAnnotationPanel();
+
+            if (overPanel)
+            {
+                if (currentXRMode != XRInteractionMode.Exploration)
+                {
+                    Debug.Log("[AirAnchorPlacement] Ray on AnnotationPanel, switch to Exploration.");
+                    ForceExplorationMode();
+                }
+                else
+                {
+                    HidePreviewMarker();
+                }
+            }
+            else if (_pointerWasOverAnnotationPanel)
+            {
+                Debug.Log("[AirAnchorPlacement] Ray left AnnotationPanel, switch to Marking.");
+                SetXRInteractionMode(XRInteractionMode.Marking);
+            }
+
+            _pointerWasOverAnnotationPanel = overPanel;
+        }
+
+        private bool IsPointerOverAnnotationPanel()
+        {
+            if (!IsAnnotationPanelOpen())
+            {
+                return false;
+            }
+
+            if (xrRayInteractor != null &&
+                xrRayInteractor.TryGetCurrentUIRaycastResult(out RaycastResult uiHit) &&
+                annotationPanel.ContainsUIObject(uiHit.gameObject))
+            {
+                return true;
+            }
+
+            if (controllerRayOrigin != null &&
+                annotationPanel.IsRayOverPanel(new Ray(controllerRayOrigin.position, controllerRayOrigin.forward)))
+            {
+                return true;
+            }
+
+            if (EventSystem.current != null)
+            {
+                PointerEventData eventData = new PointerEventData(EventSystem.current);
+                eventData.position = Input.mousePosition;
+                List<RaycastResult> results = new List<RaycastResult>();
+                EventSystem.current.RaycastAll(eventData, results);
+                foreach (RaycastResult result in results)
+                {
+                    if (annotationPanel.ContainsUIObject(result.gameObject))
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        private void HidePreviewMarker()
+        {
             if (previewMarker != null)
             {
                 previewMarker.SetActive(false);
             }
+        }
+
+        public void ForceExplorationMode()
+        {
+            if (currentXRMode != XRInteractionMode.Exploration)
+            {
+                currentXRMode = XRInteractionMode.Exploration;
+                SetTurnObjectsActive(true);
+                Debug.Log("[AirAnchorPlacementTester] XR Mode changed to: " + currentXRMode);
+            }
+
+            HidePreviewMarker();
+        }
+
+        private void SwitchToExplorationIfMarkerBlocked(string reason)
+        {
+            if (currentXRMode != XRInteractionMode.Exploration)
+            {
+                ForceExplorationMode();
+                Debug.Log("[AirAnchorPlacementTester] Auto switch to Exploration because: " + reason);
+            }
+
+            HidePreviewMarker();
         }
 
         private void UpdateMouseMode()
@@ -414,9 +566,9 @@ namespace EchoSpace.Annotation
 
         private bool ShouldBlockXRAnchorPlacement()
         {
-            if (blockXRPlacementWhenAnnotationPanelOpen && annotationPanel != null && annotationPanel.IsOpen)
+            if (IsPointerOverAnnotationPanel())
             {
-                Debug.Log("[AirAnchorPlacementTester] XR placement blocked: annotation panel is open.");
+                Debug.Log("[AirAnchorPlacement] Ray on AnnotationPanel, block marker placement.");
                 return true;
             }
 
@@ -507,9 +659,9 @@ namespace EchoSpace.Annotation
 
         private void PlaceAnchorAtPreviewMarker()
         {
-            if (blockXRPlacementWhenAnnotationPanelOpen && annotationPanel != null && annotationPanel.IsOpen)
+            if (IsPointerOverAnnotationPanel())
             {
-                Debug.Log("[AirAnchorPlacementTester] Skip placing anchor because annotation panel is open.");
+                Debug.Log("[AirAnchorPlacement] Ray on AnnotationPanel, block marker placement.");
                 return;
             }
 
@@ -576,13 +728,7 @@ namespace EchoSpace.Annotation
             if (mode == XRInteractionMode.Marking && IsMarkerBlockedBySystem())
             {
                 Debug.Log("[AirAnchorPlacementTester] Cannot enter Marking mode: marker blocked.");
-                currentXRMode = XRInteractionMode.Exploration;
-                SetTurnObjectsActive(true);
-                if (previewMarker != null)
-                {
-                    previewMarker.SetActive(false);
-                }
-
+                ForceExplorationMode();
                 return;
             }
 
@@ -618,10 +764,34 @@ namespace EchoSpace.Annotation
 
         private bool GetLeftModeToggleButtonDown()
         {
-            bool pressed = GetControllerButton(InputDeviceCharacteristics.Left, leftModeToggleButton);
+            bool pressed = IsLeftModeTogglePressed();
             bool down = pressed && !_leftModeToggleWasPressed;
             _leftModeToggleWasPressed = pressed;
             return down;
+        }
+
+        // Vive Left X is often menuButton; Quest-style profiles use primaryButton.
+        // Read both so the physical X key still toggles marking without changing bindings.
+        private bool IsLeftModeTogglePressed()
+        {
+            if (GetControllerButton(InputDeviceCharacteristics.Left, leftModeToggleButton))
+            {
+                return true;
+            }
+
+            if (leftModeToggleButton != XRBoolButtonUsage.MenuButton
+                && GetControllerButton(InputDeviceCharacteristics.Left, XRBoolButtonUsage.MenuButton))
+            {
+                return true;
+            }
+
+            if (leftModeToggleButton != XRBoolButtonUsage.PrimaryButton
+                && GetControllerButton(InputDeviceCharacteristics.Left, XRBoolButtonUsage.PrimaryButton))
+            {
+                return true;
+            }
+
+            return false;
         }
 
         private bool GetControllerButton(

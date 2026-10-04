@@ -3,6 +3,7 @@ using System.Text;
 using EchoSpace.Annotation;
 using EchoSpace.Core;
 using EchoSpace.Reflection;
+using EchoSpace.UI;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.XR;
@@ -16,6 +17,7 @@ namespace EchoSpace.LineOfLife
         public GameObject lineOfLifePanel;
         public Canvas lineOfLifeCanvas;
         public GameObject memoryCardPrefab;
+        public MemoryCardDetailPanelController memoryCardDetailPanel;
         public Transform unclassifiedCardContainer;
         public LineOfLifeDropZone pastDropZone;
         public LineOfLifeDropZone transitionDropZone;
@@ -24,11 +26,25 @@ namespace EchoSpace.LineOfLife
         public ReflectionSummaryController reflectionSummaryController;
         public LineOfLife3DViewController lineOfLife3DViewController;
         public bool hideLineOfLifeOnComplete = true;
+        [Header("Generated Transition Flow")]
+        [Tooltip("If true, 2D classification is Past / Present / Uncertain. Transition is generated later in 3D.")]
+        public bool useGeneratedTransitionFlow = true;
         public KeyCode toggleKey = KeyCode.L;
         public bool enableToggleHotkey = true;
         [Header("XR UI")]
         [Tooltip("XR main camera for World Space canvas raycasts. Falls back to Camera.main.")]
         public Camera lineOfLifeCamera;
+
+        [Header("XR Placement")]
+        [Tooltip("Place the panel in front of the player when opened, then leave it world-fixed.")]
+        public bool placeInFrontOfPlayerOnOpen = true;
+        public float panelDistanceFromCamera = 1.2f;
+        public float panelHeightOffset = 0f;
+        public bool panelFaceCamera = true;
+        public bool panelLockYOnly = true;
+        public bool panelFlip180 = true;
+        [Tooltip("Must be above ControllerTutorial (1100) and the intro black sphere, or the panel is covered.")]
+        public int panelCanvasSortingOrder = 1200;
 
         [Header("XR Controller Toggle")]
         public bool enableXRControllerToggle = true;
@@ -50,19 +66,34 @@ namespace EchoSpace.LineOfLife
             }
 
             EnsureLineOfLifeCanvasForXR();
+            ApplyGeneratedTransitionFlowLayout();
+            if (useGeneratedTransitionFlow)
+            {
+                Debug.Log("[GeneratedTransitionFlow] Enabled");
+            }
         }
 
         private void Update()
         {
+            bool tutorialMode = EchoSpace.UI.ControllerTutorialGate.IsBlockingGameplay;
+            if (tutorialMode)
+            {
+                return;
+            }
+
             if (enableToggleHotkey && Input.GetKeyDown(toggleKey))
             {
                 TogglePanel();
             }
 
-            if (enableXRControllerToggle && useRightAButtonForLineOfLifePanel && GetRightLineOfLifeToggleButtonDown())
+            if (enableXRControllerToggle && useRightAButtonForLineOfLifePanel)
             {
-                Debug.Log("[LineOfLifeManager] Right button toggle LineOfLifePanel: " + rightLineOfLifeToggleButton);
-                TogglePanel();
+                bool down = GetRightLineOfLifeToggleButtonDown();
+                if (down)
+                {
+                    Debug.Log("[LineOfLifeManager] Right button toggle LineOfLifePanel: " + rightLineOfLifeToggleButton);
+                    TogglePanel();
+                }
             }
         }
 
@@ -141,7 +172,27 @@ namespace EchoSpace.LineOfLife
             if (willOpen)
             {
                 EnsureLineOfLifeCanvasForXR();
+                PlaceLineOfLifePanelInFrontOfPlayer();
                 RefreshCards();
+            }
+            else
+            {
+                ShowExplorationModeGuideAfterClose();
+            }
+        }
+
+        private void ShowExplorationModeGuideAfterClose()
+        {
+            AirAnchorPlacementTester tester = FindObjectOfType<AirAnchorPlacementTester>();
+            if (tester != null)
+            {
+                tester.SetXRInteractionMode(XRInteractionMode.Exploration);
+            }
+
+            TutorialOverlayController overlay = FindObjectOfType<TutorialOverlayController>();
+            if (overlay != null)
+            {
+                overlay.ShowCurrentModeGuide();
             }
         }
 
@@ -155,6 +206,7 @@ namespace EchoSpace.LineOfLife
 
             lineOfLifePanel.SetActive(true);
             EnsureLineOfLifeCanvasForXR();
+            PlaceLineOfLifePanelInFrontOfPlayer();
             RefreshCards();
             Debug.Log("[LineOfLifeManager] OpenPanelAndRefresh called.");
         }
@@ -172,6 +224,8 @@ namespace EchoSpace.LineOfLife
             }
 
             lineOfLifeCanvas.renderMode = RenderMode.WorldSpace;
+            lineOfLifeCanvas.overrideSorting = true;
+            lineOfLifeCanvas.sortingOrder = panelCanvasSortingOrder;
 
             Camera cam = lineOfLifeCamera != null ? lineOfLifeCamera : Camera.main;
             if (cam != null)
@@ -195,11 +249,86 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void PlaceLineOfLifePanelInFrontOfPlayer()
+        {
+            if (!placeInFrontOfPlayerOnOpen)
+            {
+                return;
+            }
+
+            Transform target = ResolvePanelPlacementTransform();
+            Transform cam = ResolvePlayerCamera();
+            if (target == null || cam == null)
+            {
+                Debug.LogWarning("[LineOfLifeManager] Cannot place panel in front of player; missing canvas or camera.");
+                return;
+            }
+
+            target.position = cam.position
+                + cam.forward * panelDistanceFromCamera
+                + cam.up * panelHeightOffset;
+
+            if (panelFaceCamera)
+            {
+                Vector3 dir = target.position - cam.position;
+                if (panelLockYOnly)
+                {
+                    dir.y = 0f;
+                }
+
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    target.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                }
+            }
+
+            if (panelFlip180)
+            {
+                target.Rotate(0f, 180f, 0f, Space.Self);
+            }
+        }
+
+        private Transform ResolvePanelPlacementTransform()
+        {
+            if (lineOfLifeCanvas != null)
+            {
+                return lineOfLifeCanvas.transform;
+            }
+
+            if (lineOfLifePanel != null)
+            {
+                return lineOfLifePanel.transform;
+            }
+
+            return null;
+        }
+
+        private Transform ResolvePlayerCamera()
+        {
+            if (lineOfLifeCamera != null)
+            {
+                return lineOfLifeCamera.transform;
+            }
+
+            if (Camera.main != null)
+            {
+                return Camera.main.transform;
+            }
+
+            return null;
+        }
+
         public void RefreshCards()
         {
+            ApplyGeneratedTransitionFlowLayout();
+
             ClearContainer(unclassifiedCardContainer);
             ClearContainer(pastDropZone != null ? pastDropZone.cardContainer : null);
-            ClearContainer(transitionDropZone != null ? transitionDropZone.cardContainer : null);
+            if (!useGeneratedTransitionFlow)
+            {
+                ClearContainer(transitionDropZone != null ? transitionDropZone.cardContainer : null);
+            }
+
             ClearContainer(presentDropZone != null ? presentDropZone.cardContainer : null);
 
             if (anchorManager == null)
@@ -270,9 +399,35 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            SetAnchorCategory(card.Data.id, category);
+            if (useGeneratedTransitionFlow && category == TimeCategory.Transition)
+            {
+                Debug.Log("[GeneratedTransitionFlow] Ignore Transition drop; use Uncertain / unclassified instead.");
+                category = TimeCategory.Unclassified;
+                container = unclassifiedCardContainer != null ? unclassifiedCardContainer : container;
+            }
+
+            if (container == null)
+            {
+                Debug.LogError("[MemoryCardDrag] ERROR parent null / card inactive card=" + card.Data.id);
+                card.RestoreToOriginal();
+                return;
+            }
+
             card.SetParentAndReset(container);
+            if (card.transform.parent != container)
+            {
+                Debug.LogError("[MemoryCardDrag] ERROR parent null / card inactive card=" + card.Data.id);
+                card.RestoreToOriginal();
+                return;
+            }
+
+            SetAnchorCategory(card.Data.id, category);
             card.NotifyDropAccepted();
+        }
+
+        public Transform GetFallbackCardContainer()
+        {
+            return unclassifiedCardContainer;
         }
 
         public void HandleCardDropped(MemoryCardUI card)
@@ -282,7 +437,8 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            // DropZone.RegisterCardDrop handles successful placement; this is a fallback hook.
+            // Successful drops are applied in RegisterCardDrop / DropZone.
+            // Invalid drops are restored by MemoryCardUI.OnEndDrag.
         }
 
         public void DebugLoadAnchorsForTimeline()
@@ -324,15 +480,15 @@ namespace EchoSpace.LineOfLife
         public string BuildLineOfLifeSummary()
         {
             var sb = new StringBuilder();
-            sb.AppendLine("You have organized the following memories:");
+            sb.AppendLine("你整理了以下回憶：");
             sb.AppendLine();
 
             if (anchorManager == null)
             {
-                AppendSummarySection(sb, "[Past Self]", null);
-                AppendSummarySection(sb, "[Self in Transition]", null);
-                AppendSummarySection(sb, "[Present Self]", null);
-                AppendSummarySection(sb, "[Uncategorized]", null);
+                AppendSummarySection(sb, "【過往自己】", null);
+                AppendSummarySection(sb, "【過渡中的自己】", null);
+                AppendSummarySection(sb, "【現在的自己】", null);
+                AppendSummarySection(sb, "【未分類】", null);
                 return sb.ToString().TrimEnd();
             }
 
@@ -372,10 +528,10 @@ namespace EchoSpace.LineOfLife
                 }
             }
 
-            AppendSummarySection(sb, "[Past Self]", past);
-            AppendSummarySection(sb, "[Self in Transition]", transition);
-            AppendSummarySection(sb, "[Present Self]", present);
-            AppendSummarySection(sb, "[Uncategorized]", unclassified);
+            AppendSummarySection(sb, "【過往自己】", past);
+            AppendSummarySection(sb, "【過渡中的自己】", transition);
+            AppendSummarySection(sb, "【現在的自己】", present);
+            AppendSummarySection(sb, "【未分類】", unclassified);
 
             return sb.ToString().TrimEnd();
         }
@@ -442,9 +598,28 @@ namespace EchoSpace.LineOfLife
             }
 
             LogCompletedCategory("Past", past);
-            LogCompletedCategory("Transition", transition);
+            if (!useGeneratedTransitionFlow)
+            {
+                LogCompletedCategory("Transition", transition);
+            }
+            else
+            {
+                Debug.Log("[GeneratedTransitionFlow] Skip requiring Transition cards at 2D complete.");
+            }
+
             LogCompletedCategory("Present", present);
             LogCompletedCategory("Unclassified", unclassified);
+
+            if (useGeneratedTransitionFlow)
+            {
+                if (past.Count < 1 || present.Count < 1)
+                {
+                    Debug.LogWarning(
+                        "[GeneratedTransitionFlow] Need at least one Past and one Present card before opening 3D timeline. "
+                        + "Past=" + past.Count + " Present=" + present.Count);
+                    return;
+                }
+            }
 
             if (TryOpenLineOfLife3DView())
             {
@@ -494,7 +669,7 @@ namespace EchoSpace.LineOfLife
             sb.AppendLine(sectionTitle);
             if (items == null || items.Count == 0)
             {
-                sb.AppendLine("(None)");
+                sb.AppendLine("（無）");
                 sb.AppendLine();
                 return;
             }
@@ -507,7 +682,7 @@ namespace EchoSpace.LineOfLife
                 }
 
                 string userPart = string.IsNullOrEmpty(data.userText)
-                    ? "(No text entered yet)"
+                    ? "（尚未輸入文字）"
                     : data.userText;
                 sb.Append("- ");
                 sb.Append(MemoryTypeDisplay.GetDisplayName(data.memoryType));
@@ -547,11 +722,11 @@ namespace EchoSpace.LineOfLife
         {
             if (data == null)
             {
-                return "Unknown: (No text entered yet)";
+                return "未知：（尚未輸入文字）";
             }
 
             string shortUserText = string.IsNullOrEmpty(data.userText)
-                ? "(No text entered yet)"
+                ? "（尚未輸入文字）"
                 : (data.userText.Length > 30 ? data.userText.Substring(0, 30) + "..." : data.userText);
 
             return MemoryTypeDisplay.GetDisplayName(data.memoryType) + ": " + shortUserText;
@@ -579,12 +754,27 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            card.Initialize(data, this, lineOfLifeCanvas);
+            card.Initialize(data, this, lineOfLifeCanvas, memoryCardDetailPanel);
             card.SetParentAndReset(container);
+        }
+
+        public void ApplyGeneratedTransitionFlowLayout()
+        {
+            if (transitionDropZone == null)
+            {
+                return;
+            }
+
+            transitionDropZone.gameObject.SetActive(!useGeneratedTransitionFlow);
         }
 
         private Transform GetContainerForCategory(TimeCategory category)
         {
+            if (useGeneratedTransitionFlow && category == TimeCategory.Transition)
+            {
+                return unclassifiedCardContainer;
+            }
+
             switch (category)
             {
                 case TimeCategory.Past:

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33b71fae31e6c7d438e8566dc713e666, type: 3}
+  m_Name: gs_room05_01_cut
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 947060
+  m_BoundsMin: {x: -99.9971, y: -99.998795, z: -99.998}
+  m_BoundsMax: {x: 99.99813, y: 99.99705, z: 99.998}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: 01fcdf3766dabc360dbf640fe968456d
+  m_PosFormat: 0
+  m_ScaleFormat: 0
+  m_SHFormat: 0
+  m_ColorFormat: 0
+  m_PosData: {fileID: 4900000, guid: a0a3869977c5eef4f90d503f3c5725b6, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 5267737674b9fdc4b8a8d50ff40fa0d9, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 70d6222b282f5e64fbdcc7de2c219ff7, type: 3}
+  m_SHData: {fileID: 4900000, guid: 748e8ffd0de8ca84d9d0f56172077455, type: 3}
+  m_ChunkData: {fileID: 0}
+  m_Cameras: []
