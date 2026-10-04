@@ -36,5 +36,5 @@ sysinfo.txt
 *.exe
 *.zip
 *.ply
-
+*.env
 # 3DGS splat binary data is tracked via Git LFS (see .gitattributes)
