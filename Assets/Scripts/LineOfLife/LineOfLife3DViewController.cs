@@ -180,6 +180,9 @@ namespace EchoSpace.LineOfLife
         public string pairInstructionSelectText =
             "接下來，請回想你一開始提到的那段生活轉變：\n上大學搬離老家\n請在「過去」和「現在」各選一張，讓你覺得和這段生活轉變有關的卡片。只要能讓你想到與這段轉變相關的皆可d(`･∀･)b";
         [TextArea(3, 8)]
+        public string pairInstructionPracticeText =
+            "這是練習模式。\n此為 3D 時間線，正式體驗時會用來生成轉變卡以及呈現整理後的一個時間結構。看完後請按右上角「X」繼續。";
+        [TextArea(3, 8)]
         public string transitionGenerationPromptText =
             "你選的這兩張卡是否有讓你覺得從那段生活轉變前到現在，自己有哪些地方有變化？\n可以簡短說說你發現到的變化來生成轉變卡~";
 
@@ -217,6 +220,40 @@ namespace EchoSpace.LineOfLife
         private bool _warnedNoRightBoolFeatures;
         private bool _warnedSteamVRBButtonMapping;
         private bool _loggedRightBoolFeatureCatalog;
+        private bool _practiceDrawOrderApplied;
+        private readonly List<CanvasPracticeSortState> _practiceCanvasStates = new List<CanvasPracticeSortState>();
+        private readonly List<RendererPracticeSortState> _practiceRendererStates = new List<RendererPracticeSortState>();
+        private readonly List<GraphicPracticeMaterialState> _practiceGraphicStates = new List<GraphicPracticeMaterialState>();
+        private readonly List<TmpPracticeMaterialState> _practiceTmpStates = new List<TmpPracticeMaterialState>();
+        private const int PracticeTimelineCanvasSortingOrder = 1250;
+        private const int PracticeTimelineRenderQueue = 4000;
+
+        private struct CanvasPracticeSortState
+        {
+            public Canvas canvas;
+            public bool overrideSorting;
+            public int sortingOrder;
+        }
+
+        private struct RendererPracticeSortState
+        {
+            public Renderer renderer;
+            public int sortingOrder;
+            public int[] renderQueues;
+        }
+
+        private struct GraphicPracticeMaterialState
+        {
+            public Graphic graphic;
+            public Material material;
+        }
+
+        private struct TmpPracticeMaterialState
+        {
+            public TMP_Text text;
+            public Shader shader;
+            public int renderQueue;
+        }
 
         private void Awake()
         {
@@ -294,6 +331,11 @@ namespace EchoSpace.LineOfLife
         private void Update()
         {
             DebugRightControllerBoolFeatures();
+
+            if (_practiceDrawOrderApplied && !IsOpeningPracticeActive())
+            {
+                RestorePracticeTimelineDrawOrder();
+            }
 
             bool tutorialMode = EchoSpace.UI.ControllerTutorialGate.IsBlockingGameplay;
             if (tutorialMode)
@@ -1052,6 +1094,23 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void SetFinalReflectionSwitchButtonVisible(bool visible)
+        {
+            if (finalReflectionSwitchButton == null)
+            {
+                return;
+            }
+
+            if (!visible || !showFinalReflectionSwitchButton)
+            {
+                finalReflectionSwitchButton.gameObject.SetActive(false);
+                return;
+            }
+
+            finalReflectionSwitchButton.gameObject.SetActive(true);
+            EnsureButtonRaycastable(finalReflectionSwitchButton);
+        }
+
         private void ResetReflectionProgress()
         {
             hasViewedPastPrompt = false;
@@ -1237,6 +1296,7 @@ namespace EchoSpace.LineOfLife
                 UpdateProgressiveButtons();
             }
 
+            ApplyPracticeTimelineDrawOrder();
             if (UseGeneratedFlow)
             {
                 RestoreGeneratedTransitionProgress();
@@ -1244,6 +1304,7 @@ namespace EchoSpace.LineOfLife
                 RestoreGeneratedFlowUi();
             }
 
+            ApplyPracticeTimelineDrawOrder();
             Debug.Log("[LineOfLife3DView] Opened 3D timeline summary.");
         }
 
@@ -1511,6 +1572,7 @@ namespace EchoSpace.LineOfLife
 
         public void Close()
         {
+            RestorePracticeTimelineDrawOrder();
             HideAllPrompts();
             HidePairSelectionInstruction();
 
@@ -2006,6 +2068,7 @@ namespace EchoSpace.LineOfLife
             ClearCurrentPairSelection();
             UpdateProgressiveButtons();
             ShowGeneratedCardInstructionThenAutoHide();
+            SetFinalReflectionSwitchButtonVisible(true);
 
             Debug.Log(
                 "[GeneratedTransitionFlow] Generated transition card: "
@@ -2211,6 +2274,11 @@ namespace EchoSpace.LineOfLife
 
         private void RestoreGeneratedFlowUi()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             if (selectedPastCard != null && selectedPresentCard != null)
             {
                 ShowTransitionGenerationPrompt(false);
@@ -2431,6 +2499,11 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             if (pairSelectionInstructionText == null)
             {
                 return;
@@ -2489,6 +2562,11 @@ namespace EchoSpace.LineOfLife
 
         private void ShowPairInstructionLookStep()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             _pairInstructionStep = 1;
             _pairLookElapsedSeconds = 0f;
             SetPairSelectButtonsEnabled(false);
@@ -2497,12 +2575,22 @@ namespace EchoSpace.LineOfLife
 
         private void ResumePairInstructionLookStep()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             _pairInstructionStep = 1;
             BeginPairInstructionLookStep();
         }
 
         private void BeginPairInstructionLookStep()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             StopGeneratedInstructionAutoHide();
             StopNextCardButtonRoutine();
             if (pairSelectionInstructionText != null)
@@ -2519,6 +2607,11 @@ namespace EchoSpace.LineOfLife
 
         private void ShowPairInstructionSelectStep()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             _pairInstructionStep = 2;
             StopNextCardButtonRoutine();
             SetNextCardButtonVisible(false);
@@ -2531,6 +2624,7 @@ namespace EchoSpace.LineOfLife
             EnsurePairSelectionInstructionVisible();
             SetPairSelectButtonsEnabled(true);
             RefreshAllSelectForPairButtons();
+            SetFinalReflectionSwitchButtonVisible(false);
         }
 
         private void RefreshAllSelectForPairButtons()
@@ -2632,6 +2726,11 @@ namespace EchoSpace.LineOfLife
 
         private void OnNextCardButtonClicked()
         {
+            if (IsOpeningPracticeActive())
+            {
+                return;
+            }
+
             Debug.Log("[GeneratedTransitionFlow] NextcardButton clicked");
             ShowPairInstructionSelectStep();
         }
@@ -2777,6 +2876,11 @@ namespace EchoSpace.LineOfLife
 
         private void SetNextCardButtonVisible(bool visible)
         {
+            if (IsOpeningPracticeActive())
+            {
+                visible = false;
+            }
+
             ResolveNextCardButton();
             if (nextCardButton == null)
             {
@@ -2784,6 +2888,316 @@ namespace EchoSpace.LineOfLife
             }
 
             nextCardButton.gameObject.SetActive(visible);
+        }
+
+        private static bool IsOpeningPracticeActive()
+        {
+            return EchoSpace.UI.ControllerTutorialGate.IsTutorialActive;
+        }
+
+        private bool ApplyPracticeModePairInstruction()
+        {
+            if (!IsOpeningPracticeActive())
+            {
+                return false;
+            }
+
+            Transform root = ResolvePairInstructionRoot();
+            if (root == null)
+            {
+                return true;
+            }
+
+            _pairInstructionStep = 0;
+            StopGeneratedInstructionAutoHide();
+            StopNextCardButtonRoutine();
+            SetPairInstructionTimerVisible(false);
+            SetPairSelectButtonsEnabled(false);
+            RefreshAllSelectForPairButtons();
+
+            root.gameObject.SetActive(true);
+            if (pairSelectionInstructionText != null)
+            {
+                pairSelectionInstructionText.gameObject.SetActive(true);
+                pairSelectionInstructionText.text = string.IsNullOrEmpty(pairInstructionPracticeText)
+                    ? "這是練習模式。\n此為 3D 時間線，會是生成轉變卡及整理後的時間結構。\n看完後請按右上角「X」繼續。"
+                    : pairInstructionPracticeText;
+            }
+
+            _pairInstructionVisible = true;
+            SetNextCardButtonVisible(false);
+            PlacePairInstructionIfNeeded();
+            return true;
+        }
+
+        private void ApplyPracticeTimelineDrawOrder()
+        {
+            if (!IsOpeningPracticeActive())
+            {
+                RestorePracticeTimelineDrawOrder();
+                return;
+            }
+
+            Transform root = transform;
+            Shader overlayShader = Shader.Find("TextMeshPro/Distance Field Overlay");
+            Material uiMaterial = ResolvePairInstructionUiNoZTestMaterial();
+
+            Canvas[] canvases = root.GetComponentsInChildren<Canvas>(true);
+            for (int i = 0; i < canvases.Length; i++)
+            {
+                Canvas canvas = canvases[i];
+                if (canvas == null || IsPracticeCanvasTracked(canvas))
+                {
+                    continue;
+                }
+
+                _practiceCanvasStates.Add(new CanvasPracticeSortState
+                {
+                    canvas = canvas,
+                    overrideSorting = canvas.overrideSorting,
+                    sortingOrder = canvas.sortingOrder
+                });
+
+                canvas.overrideSorting = true;
+                if (canvas.sortingOrder < PracticeTimelineCanvasSortingOrder)
+                {
+                    canvas.sortingOrder = PracticeTimelineCanvasSortingOrder;
+                }
+            }
+
+            Graphic[] graphics = root.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < graphics.Length; i++)
+            {
+                Graphic graphic = graphics[i];
+                if (graphic == null || graphic is TMP_Text || IsPracticeGraphicTracked(graphic))
+                {
+                    continue;
+                }
+
+                _practiceGraphicStates.Add(new GraphicPracticeMaterialState
+                {
+                    graphic = graphic,
+                    material = graphic.material
+                });
+
+                if (uiMaterial != null)
+                {
+                    graphic.material = uiMaterial;
+                }
+            }
+
+            TMP_Text[] texts = root.GetComponentsInChildren<TMP_Text>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                TMP_Text text = texts[i];
+                if (text == null || IsPracticeTmpTracked(text))
+                {
+                    continue;
+                }
+
+                Material fontMaterial = text.fontMaterial;
+                _practiceTmpStates.Add(new TmpPracticeMaterialState
+                {
+                    text = text,
+                    shader = fontMaterial != null ? fontMaterial.shader : null,
+                    renderQueue = fontMaterial != null ? fontMaterial.renderQueue : 0
+                });
+
+                if (fontMaterial == null)
+                {
+                    continue;
+                }
+
+                if (overlayShader != null && fontMaterial.shader != overlayShader)
+                {
+                    fontMaterial.shader = overlayShader;
+                }
+
+                fontMaterial.renderQueue = PracticeTimelineRenderQueue;
+            }
+
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || IsPracticeRendererTracked(renderer))
+                {
+                    continue;
+                }
+
+                Material[] materials = renderer.materials;
+                int[] queues = new int[materials.Length];
+                for (int m = 0; m < materials.Length; m++)
+                {
+                    queues[m] = materials[m] != null ? materials[m].renderQueue : 0;
+                    if (materials[m] != null && materials[m].renderQueue < PracticeTimelineRenderQueue)
+                    {
+                        materials[m].renderQueue = PracticeTimelineRenderQueue;
+                    }
+                }
+
+                _practiceRendererStates.Add(new RendererPracticeSortState
+                {
+                    renderer = renderer,
+                    sortingOrder = renderer.sortingOrder,
+                    renderQueues = queues
+                });
+
+                if (renderer.sortingOrder < PracticeTimelineCanvasSortingOrder)
+                {
+                    renderer.sortingOrder = PracticeTimelineCanvasSortingOrder;
+                }
+            }
+
+            _practiceDrawOrderApplied = true;
+            Debug.Log("[LineOfLife3DView] Practice draw order applied in front of ControllerTutorial and black sphere.");
+        }
+
+        private bool IsPracticeCanvasTracked(Canvas canvas)
+        {
+            for (int i = 0; i < _practiceCanvasStates.Count; i++)
+            {
+                if (_practiceCanvasStates[i].canvas == canvas)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsPracticeGraphicTracked(Graphic graphic)
+        {
+            for (int i = 0; i < _practiceGraphicStates.Count; i++)
+            {
+                if (_practiceGraphicStates[i].graphic == graphic)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsPracticeTmpTracked(TMP_Text text)
+        {
+            for (int i = 0; i < _practiceTmpStates.Count; i++)
+            {
+                if (_practiceTmpStates[i].text == text)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private bool IsPracticeRendererTracked(Renderer renderer)
+        {
+            for (int i = 0; i < _practiceRendererStates.Count; i++)
+            {
+                if (_practiceRendererStates[i].renderer == renderer)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void RestorePracticeTimelineDrawOrder()
+        {
+            if (!_practiceDrawOrderApplied)
+            {
+                _practiceCanvasStates.Clear();
+                _practiceRendererStates.Clear();
+                _practiceGraphicStates.Clear();
+                _practiceTmpStates.Clear();
+                return;
+            }
+
+            for (int i = 0; i < _practiceCanvasStates.Count; i++)
+            {
+                CanvasPracticeSortState state = _practiceCanvasStates[i];
+                if (state.canvas == null)
+                {
+                    continue;
+                }
+
+                state.canvas.overrideSorting = state.overrideSorting;
+                state.canvas.sortingOrder = state.sortingOrder;
+            }
+
+            for (int i = 0; i < _practiceGraphicStates.Count; i++)
+            {
+                GraphicPracticeMaterialState state = _practiceGraphicStates[i];
+                if (state.graphic == null)
+                {
+                    continue;
+                }
+
+                state.graphic.material = state.material;
+            }
+
+            for (int i = 0; i < _practiceTmpStates.Count; i++)
+            {
+                TmpPracticeMaterialState state = _practiceTmpStates[i];
+                if (state.text == null)
+                {
+                    continue;
+                }
+
+                Material fontMaterial = state.text.fontMaterial;
+                if (fontMaterial == null)
+                {
+                    continue;
+                }
+
+                if (state.shader != null)
+                {
+                    fontMaterial.shader = state.shader;
+                }
+
+                fontMaterial.renderQueue = state.renderQueue;
+            }
+
+            for (int i = 0; i < _practiceRendererStates.Count; i++)
+            {
+                RendererPracticeSortState state = _practiceRendererStates[i];
+                if (state.renderer == null)
+                {
+                    continue;
+                }
+
+                state.renderer.sortingOrder = state.sortingOrder;
+                Material[] materials = state.renderer.materials;
+                if (state.renderQueues == null)
+                {
+                    continue;
+                }
+
+                int count = Mathf.Min(materials.Length, state.renderQueues.Length);
+                for (int m = 0; m < count; m++)
+                {
+                    if (materials[m] != null)
+                    {
+                        materials[m].renderQueue = state.renderQueues[m];
+                    }
+                }
+            }
+
+            _practiceCanvasStates.Clear();
+            _practiceRendererStates.Clear();
+            _practiceGraphicStates.Clear();
+            _practiceTmpStates.Clear();
+            _practiceDrawOrderApplied = false;
+
+            if (_pairInstructionVisible)
+            {
+                BringPairInstructionToFront();
+            }
+
+            Debug.Log("[LineOfLife3DView] Practice draw order restored.");
         }
 
         private static Transform FindChildByName(Transform root, params string[] names)
@@ -2830,6 +3244,11 @@ namespace EchoSpace.LineOfLife
 
         private void ShowGeneratedCardInstructionThenAutoHide()
         {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
             Transform root = ResolvePairInstructionRoot();
             if (root != null)
             {
@@ -2926,6 +3345,13 @@ namespace EchoSpace.LineOfLife
             }
 
             _pairInstructionVisible = true;
+            if (ApplyPracticeModePairInstruction())
+            {
+                PlacePairInstructionIfNeeded();
+                Debug.Log("[GeneratedTransitionFlow] Practice pair instruction shown");
+                return;
+            }
+
             if (_pairInstructionStep >= 2 && selectedPastCard != null && selectedPresentCard != null)
             {
                 ShowTransitionGenerationPrompt(false);
@@ -2986,6 +3412,22 @@ namespace EchoSpace.LineOfLife
             }
 
             int order = pairInstructionSortingOrder;
+            Canvas[] canvases = root.GetComponentsInChildren<Canvas>(true);
+            for (int i = 0; i < canvases.Length; i++)
+            {
+                Canvas canvas = canvases[i];
+                if (canvas == null)
+                {
+                    continue;
+                }
+
+                canvas.overrideSorting = true;
+                if (canvas.sortingOrder < order)
+                {
+                    canvas.sortingOrder = order;
+                }
+            }
+
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
             for (int i = 0; i < renderers.Length; i++)
             {

@@ -36,10 +36,10 @@ public class AnnotationPanelController : MonoBehaviour
     public bool yawOnly = true;
     public float extraYRotation = 180f;
 
-    public Color normalButtonColor = Color.black;
+    public Color normalButtonColor = Color.white;
     public Color selectedButtonColor = new Color(0.25f, 0.65f, 1f, 1f);
-    public Color normalTextColor = Color.white;
-    public Color selectedTextColor = Color.white;
+    public Color normalTextColor = Color.black;
+    public Color selectedTextColor = Color.black;
 
     [Header("Button Hover Visual")]
     public Color highlightedButtonColor = new Color(0.2f, 0.85f, 1f, 1f);
@@ -259,14 +259,11 @@ public class AnnotationPanelController : MonoBehaviour
                 userInputField.text = string.Empty;
             }
 
-            if (titleText != null)
-            {
-                titleText.text = "你​想​先​從​哪個​角度​記錄​這個​標記？​";
-            }
-
             if (promptText != null)
             {
-                promptText.text = "請先選擇一張卡片看看這邊讓你想起什麼~";
+                promptText.text = EchoSpace.UI.ControllerTutorialGate.IsTutorialActive
+                    ? "這是練習預覽模式。\n你可以先看看標記記憶時會出現的提示卡，看完後請按「關閉」繼續。"
+                    : "請先選擇一張卡片看看這邊讓你想起什麼~";
             }
         }
 
@@ -305,6 +302,7 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         RestorePracticeObjectColliders();
+        ShowCurrentModeGuideAfterClose();
         Debug.Log("[AnnotationPanelController] Closed without saving (cancel).");
     }
 
@@ -346,7 +344,18 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         RestorePracticeObjectColliders();
+        ShowCurrentModeGuideAfterClose();
         Debug.Log("[AnnotationPanelController] Save complete, panel closed.");
+    }
+
+    private void ShowCurrentModeGuideAfterClose()
+    {
+        EchoSpace.UI.TutorialOverlayController overlay =
+            FindObjectOfType<EchoSpace.UI.TutorialOverlayController>();
+        if (overlay != null)
+        {
+            overlay.ShowCurrentModeGuide();
+        }
     }
 
     private void HandleCloseOrSwitchCurrentAnchor()
@@ -498,11 +507,6 @@ public class AnnotationPanelController : MonoBehaviour
             userInputField.text = data.userText ?? string.Empty;
         }
 
-        if (titleText != null)
-        {
-            titleText.text = "這個地方讓你想起什麼？";
-        }
-
         if (promptText != null)
         {
             promptText.text = string.IsNullOrEmpty(selectedPromptQuestion)
@@ -588,16 +592,6 @@ public class AnnotationPanelController : MonoBehaviour
         {
             Debug.LogWarning("[AnnotationPanelController] panelCanvas is not assigned and could not be resolved.");
             return;
-        }
-
-        canvas.renderMode = RenderMode.WorldSpace;
-        canvas.overrideSorting = true;
-        canvas.sortingOrder = panelCanvasSortingOrder;
-
-        Camera cam = GetTargetCamera();
-        if (cam != null)
-        {
-            canvas.worldCamera = cam;
         }
 
         GraphicRaycaster graphicRaycaster = canvas.GetComponent<GraphicRaycaster>();

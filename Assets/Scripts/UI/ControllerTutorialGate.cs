@@ -50,7 +50,7 @@ namespace EchoSpace.UI
         [Header("Placement")]
         [SerializeField] private Transform playerCamera;
         [SerializeField] private float distanceFromCamera = 1.55f;
-        [SerializeField] private float heightOffset = 0f;
+        [SerializeField] private float heightOffset = 0.12f;
         [SerializeField] private bool keepInFrontOfPlayer = false;
         [SerializeField] private bool parentToCamera = false;
         [SerializeField] private float extraYRotation = 180f;
@@ -149,26 +149,12 @@ namespace EchoSpace.UI
 
         private void LateUpdate()
         {
-            if (!IsTutorialActive)
+            if (!IsTutorialActive || !keepInFrontOfPlayer)
             {
                 return;
             }
 
-            if (keepInFrontOfPlayer)
-            {
-                PlaceTutorialInFrontOfPlayer();
-                return;
-            }
-
-            if (_fixedInWorld)
-            {
-                return;
-            }
-
-            if (PlaceTutorialInFrontOfPlayer())
-            {
-                _fixedInWorld = true;
-            }
+            PlaceTutorialInFrontOfPlayer();
         }
 
         public void StartTutorial()
@@ -179,7 +165,7 @@ namespace EchoSpace.UI
             }
 
             IsTutorialActive = true;
-            _fixedInWorld = false;
+            _fixedInWorld = !keepInFrontOfPlayer;
 
             if (titleText != null && string.IsNullOrWhiteSpace(titleText.text))
             {
@@ -202,9 +188,9 @@ namespace EchoSpace.UI
             if (tutorialRoot != null)
             {
                 tutorialRoot.SetActive(true);
-                PlaceTutorialInFrontOfPlayer();
+                EnsureTutorialCanvasReady();
                 Debug.Log(
-                    "[ControllerTutorialGate] Tutorial panel placed in front of player. pos="
+                    "[ControllerTutorialGate] Tutorial panel uses scene transform. pos="
                     + tutorialRoot.transform.position
                     + " parent=" + (tutorialRoot.transform.parent != null ? tutorialRoot.transform.parent.name : "null"));
             }
@@ -301,8 +287,33 @@ namespace EchoSpace.UI
                     root.SetParent(null, true);
                 }
 
-                root.position = cam.position + cam.forward * distanceFromCamera + cam.up * heightOffset;
-                root.rotation = cam.rotation * Quaternion.Euler(0f, extraYRotation, 0f);
+                Vector3 forward = cam.forward;
+                forward.y = 0f;
+                if (forward.sqrMagnitude < 0.0001f)
+                {
+                    forward = Vector3.ProjectOnPlane(cam.forward, Vector3.up);
+                }
+
+                if (forward.sqrMagnitude < 0.0001f)
+                {
+                    forward = Vector3.forward;
+                }
+
+                forward.Normalize();
+                root.position = cam.position + forward * distanceFromCamera + Vector3.up * heightOffset;
+                root.rotation = Quaternion.Euler(0f, cam.eulerAngles.y, 0f)
+                    * Quaternion.Euler(0f, extraYRotation, 0f);
+            }
+
+            EnsureTutorialCanvasReady();
+            return true;
+        }
+
+        private void EnsureTutorialCanvasReady()
+        {
+            if (tutorialRoot == null)
+            {
+                return;
             }
 
             Canvas canvas = tutorialRoot.GetComponent<Canvas>();
@@ -311,24 +322,48 @@ namespace EchoSpace.UI
                 canvas = tutorialRoot.GetComponentInChildren<Canvas>(true);
             }
 
-            if (canvas != null)
+            if (canvas == null)
             {
-                canvas.renderMode = RenderMode.WorldSpace;
-                canvas.overrideSorting = true;
-                canvas.sortingOrder = canvasSortingOrder;
-                Camera camComponent = cam.GetComponent<Camera>();
-                if (camComponent == null)
-                {
-                    camComponent = cam.GetComponentInChildren<Camera>();
-                }
-
-                if (camComponent != null)
-                {
-                    canvas.worldCamera = camComponent;
-                }
+                return;
             }
 
-            return true;
+            canvas.overrideSorting = true;
+            if (canvas.sortingOrder < canvasSortingOrder)
+            {
+                canvas.sortingOrder = canvasSortingOrder;
+            }
+
+            Transform cam = ResolvePlayerCamera();
+            if (cam == null)
+            {
+                return;
+            }
+
+            Camera camComponent = cam.GetComponent<Camera>();
+            if (camComponent == null)
+            {
+                camComponent = cam.GetComponentInChildren<Camera>();
+            }
+
+            if (camComponent != null)
+            {
+                canvas.worldCamera = camComponent;
+            }
+        }
+
+        private static bool IsCameraTrackingReady(Transform cam)
+        {
+            if (cam == null)
+            {
+                return false;
+            }
+
+            if (cam.localPosition.y >= 0.4f)
+            {
+                return true;
+            }
+
+            return Time.timeSinceLevelLoad >= 1.2f;
         }
 
         public void HidePracticeObjects()

@@ -4,6 +4,7 @@ using EchoSpace.Annotation;
 using EchoSpace.Core;
 using EchoSpace.Reflection;
 using EchoSpace.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.XR;
@@ -26,6 +27,8 @@ namespace EchoSpace.LineOfLife
         public ReflectionSummaryController reflectionSummaryController;
         public LineOfLife3DViewController lineOfLife3DViewController;
         public bool hideLineOfLifeOnComplete = true;
+        [Tooltip("Shown only during the opening practice phase.")]
+        public TMP_Text practiceText;
         [Header("Generated Transition Flow")]
         [Tooltip("If true, 2D classification is Past / Present / Uncertain. Transition is generated later in 3D.")]
         public bool useGeneratedTransitionFlow = true;
@@ -54,6 +57,7 @@ namespace EchoSpace.LineOfLife
         public XRBoolButtonUsage rightLineOfLifeToggleButton = XRBoolButtonUsage.PrimaryButton;
 
         private bool _rightLineOfLifeToggleWasPressed;
+        private bool _practiceTextWasActive;
 
         public bool IsOpen =>
             lineOfLifePanel != null && lineOfLifePanel.activeSelf;
@@ -67,6 +71,7 @@ namespace EchoSpace.LineOfLife
 
             EnsureLineOfLifeCanvasForXR();
             ApplyGeneratedTransitionFlowLayout();
+            ApplyPracticeTextVisibility(true);
             if (useGeneratedTransitionFlow)
             {
                 Debug.Log("[GeneratedTransitionFlow] Enabled");
@@ -75,6 +80,8 @@ namespace EchoSpace.LineOfLife
 
         private void Update()
         {
+            ApplyPracticeTextVisibility(false);
+
             bool tutorialMode = EchoSpace.UI.ControllerTutorialGate.IsBlockingGameplay;
             if (tutorialMode)
             {
@@ -173,6 +180,7 @@ namespace EchoSpace.LineOfLife
             {
                 EnsureLineOfLifeCanvasForXR();
                 PlaceLineOfLifePanelInFrontOfPlayer();
+                ApplyPracticeTextVisibility(true);
                 RefreshCards();
             }
             else
@@ -207,6 +215,7 @@ namespace EchoSpace.LineOfLife
             lineOfLifePanel.SetActive(true);
             EnsureLineOfLifeCanvasForXR();
             PlaceLineOfLifePanelInFrontOfPlayer();
+            ApplyPracticeTextVisibility(true);
             RefreshCards();
             Debug.Log("[LineOfLifeManager] OpenPanelAndRefresh called.");
         }
@@ -313,6 +322,77 @@ namespace EchoSpace.LineOfLife
             if (Camera.main != null)
             {
                 return Camera.main.transform;
+            }
+
+            return null;
+        }
+
+        private void ApplyPracticeTextVisibility(bool force)
+        {
+            ResolvePracticeText();
+            bool practice = ControllerTutorialGate.IsTutorialActive;
+            if (!force && practice == _practiceTextWasActive)
+            {
+                return;
+            }
+
+            _practiceTextWasActive = practice;
+            if (practiceText == null)
+            {
+                return;
+            }
+
+            practiceText.gameObject.SetActive(practice);
+        }
+
+        private void ResolvePracticeText()
+        {
+            if (practiceText != null)
+            {
+                return;
+            }
+
+            Transform searchRoot = lineOfLifePanel != null
+                ? lineOfLifePanel.transform
+                : (lineOfLifeCanvas != null ? lineOfLifeCanvas.transform : transform);
+            Transform found = FindChildByName(searchRoot, "practiceText", "PracticeText");
+            if (found == null && lineOfLifeCanvas != null && searchRoot != lineOfLifeCanvas.transform)
+            {
+                found = FindChildByName(lineOfLifeCanvas.transform, "practiceText", "PracticeText");
+            }
+
+            if (found != null)
+            {
+                practiceText = found.GetComponent<TMP_Text>();
+                if (practiceText == null)
+                {
+                    practiceText = found.GetComponentInChildren<TMP_Text>(true);
+                }
+            }
+        }
+
+        private static Transform FindChildByName(Transform root, params string[] names)
+        {
+            if (root == null || names == null)
+            {
+                return null;
+            }
+
+            for (int n = 0; n < names.Length; n++)
+            {
+                if (string.Equals(root.name, names[n], System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return root;
+                }
+            }
+
+            for (int i = 0; i < root.childCount; i++)
+            {
+                Transform found = FindChildByName(root.GetChild(i), names);
+                if (found != null)
+                {
+                    return found;
+                }
             }
 
             return null;

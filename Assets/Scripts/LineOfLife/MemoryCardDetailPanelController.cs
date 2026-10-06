@@ -25,6 +25,11 @@ namespace EchoSpace.LineOfLife
         [SerializeField] private bool faceCamera = true;
         [SerializeField] private bool lockYOnly = true;
         [SerializeField] private bool flip180 = true;
+        [Tooltip("Must be above LineOfLifeCanvas (1200) and 3D timeline / pair instruction (2600).")]
+        [SerializeField] private int panelSortingOrder = 2800;
+
+        private Material _uiNoZTestMaterial;
+        private const int DetailRenderQueue = 4002;
 
         private void Awake()
         {
@@ -156,6 +161,22 @@ namespace EchoSpace.LineOfLife
                 Debug.Log("[MemoryCardDetail] Added TrackedDeviceGraphicRaycaster on " + canvas.name);
             }
 
+            GraphicRaycaster graphicRaycaster = canvas.GetComponent<GraphicRaycaster>();
+            if (graphicRaycaster != null)
+            {
+                graphicRaycaster.ignoreReversedGraphics = false;
+                graphicRaycaster.blockingObjects = GraphicRaycaster.BlockingObjects.None;
+            }
+
+            TrackedDeviceGraphicRaycaster trackedRaycaster = canvas.GetComponent<TrackedDeviceGraphicRaycaster>();
+            if (trackedRaycaster != null)
+            {
+                trackedRaycaster.ignoreReversedGraphics = false;
+                trackedRaycaster.checkFor3DOcclusion = false;
+            }
+
+            BringDetailCanvasToFront(canvas);
+
             // Colliders make XR rays treat the panel as a 3D object (red reticle)
             // instead of UI — remove them from this panel hierarchy.
             Collider[] colliders = canvas.GetComponentsInChildren<Collider>(true);
@@ -190,6 +211,79 @@ namespace EchoSpace.LineOfLife
             }
 
             return GetComponentInParent<Canvas>();
+        }
+
+        private void BringDetailCanvasToFront(Canvas canvas)
+        {
+            if (canvas == null)
+            {
+                return;
+            }
+
+            canvas.overrideSorting = true;
+            if (canvas.sortingOrder < panelSortingOrder)
+            {
+                canvas.sortingOrder = panelSortingOrder;
+            }
+
+            Material uiMaterial = ResolveUiNoZTestMaterial();
+            Graphic[] graphics = canvas.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < graphics.Length; i++)
+            {
+                Graphic graphic = graphics[i];
+                if (graphic == null || graphic is TMP_Text)
+                {
+                    continue;
+                }
+
+                if (uiMaterial != null)
+                {
+                    graphic.material = uiMaterial;
+                }
+            }
+
+            Shader overlayShader = Shader.Find("TextMeshPro/Distance Field Overlay");
+            TMP_Text[] texts = canvas.GetComponentsInChildren<TMP_Text>(true);
+            for (int i = 0; i < texts.Length; i++)
+            {
+                TMP_Text text = texts[i];
+                if (text == null)
+                {
+                    continue;
+                }
+
+                Material fontMaterial = text.fontMaterial;
+                if (fontMaterial == null)
+                {
+                    continue;
+                }
+
+                if (overlayShader != null && fontMaterial.shader != overlayShader)
+                {
+                    fontMaterial.shader = overlayShader;
+                }
+
+                fontMaterial.renderQueue = DetailRenderQueue;
+            }
+        }
+
+        private Material ResolveUiNoZTestMaterial()
+        {
+            if (_uiNoZTestMaterial != null)
+            {
+                return _uiNoZTestMaterial;
+            }
+
+            Shader shader = Shader.Find("UI/NoZTest");
+            if (shader == null)
+            {
+                return null;
+            }
+
+            _uiNoZTestMaterial = new Material(shader);
+            _uiNoZTestMaterial.name = "MemoryCardDetail-UI-NoZTest";
+            _uiNoZTestMaterial.renderQueue = DetailRenderQueue;
+            return _uiNoZTestMaterial;
         }
 
         private void ConfigureDisplayTextRaycasts()
