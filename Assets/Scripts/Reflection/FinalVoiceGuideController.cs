@@ -1,6 +1,7 @@
 using System.Collections;
 using EchoSpace.Core;
 using EchoSpace.LineOfLife;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -74,6 +75,14 @@ namespace EchoSpace.Reflection
         [SerializeField] private Button nextButton;
         [Tooltip("AfterSwitchViewRoot / Prompt / Canvas / 3DLineButton. Opens the 3D timeline.")]
         [SerializeField] private Button lineOfLife3DButton;
+        [Tooltip("AfterSwitchViewRoot / Prompt / Canvas / CloseButton. Hides the Prompt panel.")]
+        [SerializeField] private Button afterSwitchCloseButton;
+        [Tooltip("AfterSwitchViewRoot / OpenPromptCanvas / OpenPromptButton. Shown only while Prompt is hidden.")]
+        [SerializeField] private Button openPromptButton;
+        [Tooltip("Meters toward the player from the Prompt. Positive = closer, negative = farther. 0 keeps the Prompt position.")]
+        [SerializeField] private float openPromptOffsetTowardPlayer = 0f;
+        [Tooltip("OpenPromptButton will not come closer than this many meters.")]
+        [SerializeField] private float openPromptMinDistanceFromPlayer = 0.4f;
 
         private Coroutine playRoutine;
         private bool _secondClipPlayed;
@@ -109,8 +118,10 @@ namespace EchoSpace.Reflection
             BindPhotobookButtons();
             BindNextVoiceButton();
             Bind3DLineButton();
+            BindAfterSwitchPromptToggleButtons();
             SetNextButtonVisible(false);
             Set3DLineButtonVisible(false);
+            RefreshOpenPromptButtonVisibility();
             if (subtitleRoot != null)
             {
                 subtitleRoot.SetActive(false);
@@ -123,8 +134,10 @@ namespace EchoSpace.Reflection
             BindPhotobookButtons();
             BindNextVoiceButton();
             Bind3DLineButton();
+            BindAfterSwitchPromptToggleButtons();
             SetNextButtonVisible(false);
             Set3DLineButtonVisible(false);
+            RefreshOpenPromptButtonVisibility();
         }
 
         private void OnDisable()
@@ -204,8 +217,10 @@ namespace EchoSpace.Reflection
             _secondClipPlayed = false;
             BindNextVoiceButton();
             Bind3DLineButton();
+            BindAfterSwitchPromptToggleButtons();
             SetNextButtonVisible(false);
             Set3DLineButtonVisible(false);
+            RefreshOpenPromptButtonVisibility();
             Debug.Log("[FinalVoiceGuide] Playing guide clip: " + guideClip.name);
 
             if (showSubtitleWhilePlaying && subtitleRoot != null)
@@ -218,6 +233,7 @@ namespace EchoSpace.Reflection
                 subtitleRoot.SetActive(true);
                 PreparePhotobookButtonCanvas(subtitleRoot);
                 BringAfterSwitchViewToFront();
+                RefreshOpenPromptButtonVisibility();
             }
 
             HideAfterSwitchPanels();
@@ -323,6 +339,216 @@ namespace EchoSpace.Reflection
             {
                 PreparePhotobookButtonCanvas(subtitleRoot);
             }
+        }
+
+        private void BindAfterSwitchPromptToggleButtons()
+        {
+            ResolveAfterSwitchCloseButton();
+            ResolveOpenPromptButton();
+
+            if (afterSwitchCloseButton != null)
+            {
+                BindPhotobookButton(afterSwitchCloseButton);
+                Navigation closeNavigation = afterSwitchCloseButton.navigation;
+                closeNavigation.mode = Navigation.Mode.None;
+                afterSwitchCloseButton.navigation = closeNavigation;
+                afterSwitchCloseButton.onClick.RemoveListener(OnAfterSwitchCloseClicked);
+                afterSwitchCloseButton.onClick.AddListener(OnAfterSwitchCloseClicked);
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[FinalVoiceGuide] CloseButton was not found under AfterSwitchViewRoot / Prompt / Canvas.");
+            }
+
+            if (openPromptButton != null)
+            {
+                BindPhotobookButton(openPromptButton);
+                Navigation openNavigation = openPromptButton.navigation;
+                openNavigation.mode = Navigation.Mode.None;
+                openPromptButton.navigation = openNavigation;
+                openPromptButton.onClick.RemoveListener(OnOpenPromptClicked);
+                openPromptButton.onClick.AddListener(OnOpenPromptClicked);
+                Canvas openPromptCanvas = openPromptButton.GetComponentInParent<Canvas>();
+                if (openPromptCanvas != null)
+                {
+                    PreparePhotobookButtonCanvas(openPromptCanvas.gameObject);
+                }
+            }
+            else
+            {
+                Debug.LogWarning(
+                    "[FinalVoiceGuide] OpenPromptButton was not found under AfterSwitchViewRoot / OpenPromptCanvas.");
+            }
+
+            if (subtitleRoot != null)
+            {
+                PreparePhotobookButtonCanvas(subtitleRoot);
+            }
+
+            RefreshOpenPromptButtonVisibility();
+        }
+
+        private void ResolveAfterSwitchCloseButton()
+        {
+            if (afterSwitchCloseButton != null)
+            {
+                return;
+            }
+
+            GameObject prompt = ResolveAfterSwitchPrompt();
+            Transform searchRoot = prompt != null ? prompt.transform : subtitleRoot != null ? subtitleRoot.transform : null;
+            Transform found = FindChildNamed(searchRoot, "CloseButton");
+            if (found == null)
+            {
+                return;
+            }
+
+            afterSwitchCloseButton = found.GetComponent<Button>();
+            if (afterSwitchCloseButton == null)
+            {
+                afterSwitchCloseButton = found.GetComponentInChildren<Button>(true);
+            }
+        }
+
+        private void ResolveOpenPromptButton()
+        {
+            if (openPromptButton != null)
+            {
+                return;
+            }
+
+            Transform searchRoot = subtitleRoot != null ? subtitleRoot.transform : null;
+            Transform found = FindChildNamed(searchRoot, "OpenPromptButton");
+            if (found == null)
+            {
+                return;
+            }
+
+            openPromptButton = found.GetComponent<Button>();
+            if (openPromptButton == null)
+            {
+                openPromptButton = found.GetComponentInChildren<Button>(true);
+            }
+        }
+
+        private void RefreshOpenPromptButtonVisibility()
+        {
+            ResolveOpenPromptButton();
+            if (openPromptButton == null)
+            {
+                return;
+            }
+
+            GameObject prompt = ResolveAfterSwitchPrompt();
+            bool promptVisible = prompt != null && prompt.activeSelf;
+            bool rootVisible = subtitleRoot == null || subtitleRoot.activeSelf;
+            bool show = rootVisible && !promptVisible;
+            openPromptButton.gameObject.SetActive(show);
+            if (show)
+            {
+                PlaceOpenPromptAtPromptPose();
+            }
+        }
+
+        private void PlaceOpenPromptAtPromptPose()
+        {
+            GameObject prompt = ResolveAfterSwitchPrompt();
+            ResolveOpenPromptButton();
+            if (prompt == null || openPromptButton == null)
+            {
+                return;
+            }
+
+            Transform canvas = openPromptButton.transform.parent;
+            Transform target = canvas != null ? canvas : openPromptButton.transform;
+            target.position = GetOpenPromptPosition(prompt.transform.position);
+            FaceWorldUiTowardCamera(target);
+            EnsureOpenPromptBillboard(target);
+
+            RectTransform buttonRect = openPromptButton.transform as RectTransform;
+            if (buttonRect != null)
+            {
+                buttonRect.anchoredPosition3D = Vector3.zero;
+                buttonRect.localRotation = Quaternion.identity;
+                Vector3 scale = buttonRect.localScale;
+                buttonRect.localScale = new Vector3(
+                    Mathf.Abs(scale.x),
+                    Mathf.Abs(scale.y),
+                    Mathf.Abs(scale.z));
+            }
+            else
+            {
+                openPromptButton.transform.localPosition = Vector3.zero;
+                openPromptButton.transform.localRotation = Quaternion.identity;
+            }
+        }
+
+        private Vector3 GetOpenPromptPosition(Vector3 promptPosition)
+        {
+            EnsurePlayerCamera();
+            if (playerCamera == null)
+            {
+                return promptPosition;
+            }
+
+            Vector3 fromPromptToPlayer = playerCamera.position - promptPosition;
+            fromPromptToPlayer.y = 0f;
+            float currentDistance = fromPromptToPlayer.magnitude;
+            if (currentDistance < 0.0001f)
+            {
+                return promptPosition;
+            }
+
+            float minDistance = Mathf.Max(0.05f, openPromptMinDistanceFromPlayer);
+            float maxToward = Mathf.Max(0f, currentDistance - minDistance);
+            float toward = Mathf.Clamp(openPromptOffsetTowardPlayer, -10f, maxToward);
+            Vector3 position = promptPosition + fromPromptToPlayer / currentDistance * toward;
+            position.y = promptPosition.y;
+            return position;
+        }
+
+        private void FaceWorldUiTowardCamera(Transform target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            EnsurePlayerCamera();
+            Transform cam = playerCamera;
+            if (cam == null)
+            {
+                return;
+            }
+
+            Vector3 toCamera = cam.position - target.position;
+            if (toCamera.sqrMagnitude < 0.0001f)
+            {
+                return;
+            }
+
+            target.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
+            target.Rotate(0f, 180f, 0f, Space.Self);
+        }
+
+        private void EnsureOpenPromptBillboard(Transform target)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            BillboardToCamera billboard = target.GetComponent<BillboardToCamera>();
+            if (billboard == null)
+            {
+                billboard = target.gameObject.AddComponent<BillboardToCamera>();
+            }
+
+            EnsurePlayerCamera();
+            billboard.targetCamera = playerCamera;
+            billboard.lockYOnly = false;
+            billboard.flip180 = true;
         }
 
         private void Clear3DLineButtonSelection()
@@ -450,6 +676,7 @@ namespace EchoSpace.Reflection
             }
 
             BindPhotobookButton(nextButton);
+            UiSfx.BindClick(nextButton);
             if (subtitleRoot != null)
             {
                 PreparePhotobookButtonCanvas(subtitleRoot);
@@ -495,6 +722,7 @@ namespace EchoSpace.Reflection
             }
 
             nextButton.gameObject.SetActive(visible);
+            RefreshOpenPromptButtonVisibility();
         }
 
         private void Set3DLineButtonVisible(bool visible)
@@ -511,6 +739,7 @@ namespace EchoSpace.Reflection
             }
 
             lineOfLife3DButton.gameObject.SetActive(visible);
+            RefreshOpenPromptButtonVisibility();
         }
 
         private static Transform FindChildNamed(Transform root, string childName)
@@ -620,15 +849,39 @@ namespace EchoSpace.Reflection
             SetAfterSwitchPromptVisible(true);
         }
 
+        public void OnAfterSwitchCloseClicked()
+        {
+            GameObject prompt = ResolveAfterSwitchPrompt();
+            bool wasVisible = prompt != null && prompt.activeSelf;
+            SetAfterSwitchPromptVisible(false);
+            if (wasVisible)
+            {
+                UiSfx.PlayExit();
+            }
+        }
+
+        public void OnOpenPromptClicked()
+        {
+            SetAfterSwitchPromptVisible(true);
+        }
+
         private void SetAfterSwitchPromptVisible(bool visible)
         {
             GameObject prompt = ResolveAfterSwitchPrompt();
             if (prompt == null)
             {
+                RefreshOpenPromptButtonVisibility();
                 return;
             }
 
+            bool wasVisible = prompt.activeSelf;
             prompt.SetActive(visible);
+            if (visible && !wasVisible)
+            {
+                UiSfx.PlayPopup();
+            }
+
+            RefreshOpenPromptButtonVisibility();
         }
 
         private GameObject ResolveAfterSwitchPrompt()
@@ -743,6 +996,8 @@ namespace EchoSpace.Reflection
 
             BindPhotobookButton(continuityButton);
             BindPhotobookButton(differenceButton);
+            UiSfx.BindClick(continuityButton);
+            UiSfx.BindClick(differenceButton);
 
             if (continuityButton == null)
             {
@@ -924,6 +1179,7 @@ namespace EchoSpace.Reflection
 
         private void SetPhotobookVisible(bool visible)
         {
+            bool wasVisible = IsPhotobookVisible();
             GameObject root = ResolvePhotobookRoot();
             if (root != null)
             {
@@ -933,6 +1189,15 @@ namespace EchoSpace.Reflection
             if (photobookPanel != null && photobookPanel != root)
             {
                 photobookPanel.SetActive(visible);
+            }
+
+            if (visible && !wasVisible)
+            {
+                UiSfx.PlayPopup();
+            }
+            else if (!visible && wasVisible)
+            {
+                UiSfx.PlayExit();
             }
         }
 

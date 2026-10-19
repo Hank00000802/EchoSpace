@@ -188,6 +188,7 @@ namespace EchoSpace.UI
             if (tutorialRoot != null)
             {
                 tutorialRoot.SetActive(true);
+                UiSfx.PlayPopup();
                 EnsureTutorialCanvasReady();
                 Debug.Log(
                     "[ControllerTutorialGate] Tutorial panel uses scene transform. pos="
@@ -226,6 +227,7 @@ namespace EchoSpace.UI
             }
 
             IsTutorialActive = false;
+            UiSfx.PlayExit();
             _fixedInWorld = false;
 
             if (tutorialOverlay != null)

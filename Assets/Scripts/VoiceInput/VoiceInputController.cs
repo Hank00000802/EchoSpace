@@ -1,4 +1,5 @@
 using System.Collections;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -64,9 +65,11 @@ namespace EchoSpace.VoiceInput
             }
 
             clickButton.onClick.AddListener(OnMicButtonClicked);
+            UiSfx.BindClick(clickButton);
             if (micButton != null && micButton != clickButton)
             {
                 micButton.onClick.AddListener(OnMicButtonClicked);
+                UiSfx.BindClick(micButton);
             }
 
             ResetToIdle();

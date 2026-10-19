@@ -1,8 +1,8 @@
-using System.Collections;
 using System.Collections.Generic;
 using EchoSpace.Annotation;
 using EchoSpace.Core;
 using EchoSpace.SwitchView;
+using EchoSpace.UI;
 using EchoSpace.VoiceInput;
 using TMPro;
 using UnityEngine;
@@ -170,21 +170,21 @@ namespace EchoSpace.LineOfLife
         public bool pairInstructionFaceCamera = true;
         [Tooltip("Draw pair instruction in front of MemoryAnchor overlay meshes (Overlay queue 4000).")]
         public int pairInstructionSortingOrder = 2600;
-        public float generatedInstructionAutoHideSeconds = 10f;
-        public float nextCardButtonDelaySeconds = 30f;
-        public Button confirmPastPresentPairButton;
         [TextArea(3, 8)]
-        public string pairInstructionLookText =
-            "這邊先讓你看一下剛才放在「過去」和「現在」的卡片。這些卡片裡，有沒有哪一些讓你感覺：「以前的我」和「現在的我」好像有些地方不太一樣了？\n想好後可再按下一步";
+        public string pairInstructionText =
+            "請先看一下你剛才放在「轉變前」和「現在」的卡片。並選擇一張來生成連結卡";
         [TextArea(3, 8)]
-        public string pairInstructionSelectText =
-            "接下來，請回想你一開始提到的那段生活轉變：\n上大學搬離老家\n請在「過去」和「現在」各選一張，讓你覺得和這段生活轉變有關的卡片。只要能讓你想到與這段轉變相關的皆可d(`･∀･)b";
+        public string pairInstructionGeneratedText =
+            "連結卡已生成。\n如果還有想整理的記憶，可以按「繼續」再生成一張；如果差不多了，請按「切換視角」進入下一階段。";
         [TextArea(3, 8)]
         public string pairInstructionPracticeText =
             "這是練習模式。\n此為 3D 時間線，正式體驗時會用來生成轉變卡以及呈現整理後的一個時間結構。看完後請按右上角「X」繼續。";
         [TextArea(3, 8)]
-        public string transitionGenerationPromptText =
-            "你選的這兩張卡是否有讓你覺得從那段生活轉變前到現在，自己有哪些地方有變化？\n可以簡短說說你發現到的變化來生成轉變卡~";
+        public string transitionGenerationPastPromptText =
+            "現在的你和這張讓你回想到過去狀態的記憶卡片有什麼不同？ 是什麼事情、經驗，或是這段生活轉變，讓你有所改變的？";
+        [TextArea(3, 8)]
+        public string transitionGenerationPresentPromptText =
+            "為什麼在經歷生活轉變後，這張記憶卡仍然讓你覺得是現在自己的一部分？\n是否是因為什麼事情或經驗奠定的？";
 
         private MemoryAnchorData selectedPastCard;
         private MemoryAnchorData selectedPresentCard;
@@ -199,19 +199,14 @@ namespace EchoSpace.LineOfLife
         private string pendingVoiceText = string.Empty;
         private VoiceInputController _transitionVoiceInput;
         private bool _pairInstructionVisible;
-        private int _pairInstructionStep;
+        private bool _awaitingContinueAfterLinkCard;
         private bool _pairSelectButtonsEnabled;
         public bool IsPairSelectionEnabled => UseGeneratedFlow && _pairSelectButtonsEnabled;
-        private Coroutine _generatedInstructionAutoHideRoutine;
-        private Coroutine _nextCardButtonRoutine;
-        private float _pairLookElapsedSeconds;
         private bool _pairInstructionPlaced;
         private Vector3 _pairInstructionWorldPosition;
         private Quaternion _pairInstructionWorldRotation;
         private Material _pairInstructionUiNoZTestMaterial;
         private const int PairInstructionRenderQueue = 4001;
-        private const string GeneratedTransitionCardInstruction =
-            "已生成「我注意到的轉變」卡。可以繼續按下一步從轉變前/現在各選一張來生成轉變卡，\n或是直接按下方切換視角按鈕，進入下一階段";
 
         private float _right3DViewHoldTimer;
         private bool _right3DViewHoldTriggered;
@@ -303,8 +298,6 @@ namespace EchoSpace.LineOfLife
 
         private void OnDestroy()
         {
-            StopGeneratedInstructionAutoHide();
-            StopNextCardButtonRoutine();
             UnbindNextCardButton();
             UnbindCloseTimelineButton();
             UnbindTransitionVoiceInput();
@@ -312,20 +305,19 @@ namespace EchoSpace.LineOfLife
 
         private void LateUpdate()
         {
-            if (!_pairInstructionVisible)
+            if (IsTransitionGeneratePanelVisible())
+            {
+                ApplyGeneratePanelPosition();
+                EnsureGeneratePanelBillboard();
+            }
+
+            bool viewVisible = viewRoot == null || viewRoot.activeInHierarchy;
+            if (!viewVisible || !_pairInstructionVisible || !_pairInstructionPlaced)
             {
                 return;
             }
 
-            if (viewRoot != null && !viewRoot.activeInHierarchy)
-            {
-                return;
-            }
-
-            if (_pairInstructionPlaced)
-            {
-                ApplyCachedPairInstructionPose();
-            }
+            ApplyCachedPairInstructionPose();
         }
 
         private void Update()
@@ -628,6 +620,7 @@ namespace EchoSpace.LineOfLife
             {
                 pastButton.onClick.RemoveListener(ShowPastPrompt);
                 pastButton.onClick.AddListener(ShowPastPrompt);
+                UiSfx.BindClick(pastButton);
             }
             else
             {
@@ -638,6 +631,7 @@ namespace EchoSpace.LineOfLife
             {
                 transitionButton.onClick.RemoveListener(ShowTransitionPrompt);
                 transitionButton.onClick.AddListener(ShowTransitionPrompt);
+                UiSfx.BindClick(transitionButton);
             }
             else
             {
@@ -648,6 +642,7 @@ namespace EchoSpace.LineOfLife
             {
                 presentButton.onClick.RemoveListener(ShowPresentPrompt);
                 presentButton.onClick.AddListener(ShowPresentPrompt);
+                UiSfx.BindClick(presentButton);
             }
             else
             {
@@ -660,6 +655,7 @@ namespace EchoSpace.LineOfLife
             {
                 leftCrossLinkButton.onClick.RemoveListener(ShowPastToTransitionPrompt);
                 leftCrossLinkButton.onClick.AddListener(ShowPastToTransitionPrompt);
+                UiSfx.BindClick(leftCrossLinkButton);
             }
             else
             {
@@ -670,6 +666,7 @@ namespace EchoSpace.LineOfLife
             {
                 rightCrossLinkButton.onClick.RemoveListener(ShowTransitionToPresentPrompt);
                 rightCrossLinkButton.onClick.AddListener(ShowTransitionToPresentPrompt);
+                UiSfx.BindClick(rightCrossLinkButton);
             }
             else
             {
@@ -680,6 +677,7 @@ namespace EchoSpace.LineOfLife
             {
                 finalReflectionButton.onClick.RemoveListener(ShowFinalReflectionPrompt);
                 finalReflectionButton.onClick.AddListener(ShowFinalReflectionPrompt);
+                UiSfx.BindClick(finalReflectionButton);
             }
             else
             {
@@ -763,6 +761,7 @@ namespace EchoSpace.LineOfLife
                 generateTransitionCardButton.interactable = true;
                 generateTransitionCardButton.onClick.RemoveListener(OnGenerateTransitionCardClicked);
                 generateTransitionCardButton.onClick.AddListener(OnGenerateTransitionCardClicked);
+                UiSfx.BindClick(generateTransitionCardButton);
                 EnsureButtonRaycastable(generateTransitionCardButton);
                 Debug.Log("[GeneratedTransitionFlow] Generate button bound: " + generateTransitionCardButton.name);
             }
@@ -771,12 +770,6 @@ namespace EchoSpace.LineOfLife
                 Debug.LogWarning(
                     "[GeneratedTransitionFlow] generateTransitionCardButton is not assigned. " +
                     "Drag the 生成轉變卡 Button onto LineOfLife3DViewController, or name it GenerateTransitionCardButton.");
-            }
-
-            if (confirmPastPresentPairButton != null)
-            {
-                confirmPastPresentPairButton.onClick.RemoveListener(ShowTransitionGenerationPrompt);
-                confirmPastPresentPairButton.onClick.AddListener(ShowTransitionGenerationPrompt);
             }
 
             RegisterNextCardButton();
@@ -1066,6 +1059,9 @@ namespace EchoSpace.LineOfLife
         private bool HasGeneratedTransitionCards =>
             generatedTransitionCard != null || _generatedTransitionCards.Count > 0;
 
+        private bool HasSelectedLinkSource =>
+            selectedPastCard != null || selectedPresentCard != null;
+
         public void ShowSwitchViewPromptFromFinalReflection()
         {
             if (switchViewController == null)
@@ -1193,9 +1189,15 @@ namespace EchoSpace.LineOfLife
 
         public void Open()
         {
+            bool wasVisible = viewRoot != null && viewRoot.activeSelf;
             if (viewRoot != null)
             {
                 viewRoot.SetActive(true);
+            }
+
+            if (!wasVisible)
+            {
+                UiSfx.PlayPopup();
             }
 
             ResolvePromptReferences();
@@ -1565,6 +1567,7 @@ namespace EchoSpace.LineOfLife
             else if (viewRoot != null)
             {
                 viewRoot.SetActive(true);
+                UiSfx.PlayPopup();
             }
 
             Debug.Log("[LineOfLife3DView] Hotkey open 3D view.");
@@ -1572,6 +1575,7 @@ namespace EchoSpace.LineOfLife
 
         public void Close()
         {
+            bool wasVisible = viewRoot != null && viewRoot.activeSelf;
             RestorePracticeTimelineDrawOrder();
             HideAllPrompts();
             HidePairSelectionInstruction();
@@ -1581,9 +1585,14 @@ namespace EchoSpace.LineOfLife
                 viewRoot.SetActive(false);
             }
 
+            if (wasVisible)
+            {
+                UiSfx.PlayExit();
+            }
+
             if (hideSwitchViewOnLineOfLifeClose && switchViewController != null)
             {
-                switchViewController.HideSwitchViewPrompt();
+                switchViewController.HideSwitchViewPrompt(false);
             }
 
             Debug.Log("[LineOfLife3DView] Closed.");
@@ -1904,7 +1913,7 @@ namespace EchoSpace.LineOfLife
 
             if (!IsPairSelectionEnabled)
             {
-                Debug.Log("[GeneratedTransitionFlow] Pair selection ignored until NextButton.");
+                Debug.Log("[GeneratedTransitionFlow] Link-card selection ignored until instruction is shown.");
                 return;
             }
 
@@ -1912,6 +1921,7 @@ namespace EchoSpace.LineOfLife
             Color previewColor = PeekNextPairColor();
             if (category == TimeCategory.Past)
             {
+                ClearPresentSelectionVisual();
                 if (selectedPastCardUi != null && selectedPastCardUi != card)
                 {
                     selectedPastCardUi.SetPairSelected(false);
@@ -1921,10 +1931,11 @@ namespace EchoSpace.LineOfLife
                 selectedPastCardUi = card;
                 card.SetPairSelected(true);
                 card.SetGroupColor(previewColor);
-                Debug.Log("[GeneratedTransitionFlow] Past selected: " + FormatCardLog(card.Data));
+                Debug.Log("[GeneratedTransitionFlow] Past selected for link card: " + FormatCardLog(card.Data));
             }
             else if (category == TimeCategory.Present)
             {
+                ClearPastSelectionVisual();
                 if (selectedPresentCardUi != null && selectedPresentCardUi != card)
                 {
                     selectedPresentCardUi.SetPairSelected(false);
@@ -1934,22 +1945,17 @@ namespace EchoSpace.LineOfLife
                 selectedPresentCardUi = card;
                 card.SetPairSelected(true);
                 card.SetGroupColor(previewColor);
-                Debug.Log("[GeneratedTransitionFlow] Present selected: " + FormatCardLog(card.Data));
+                Debug.Log("[GeneratedTransitionFlow] Present selected for link card: " + FormatCardLog(card.Data));
             }
             else
             {
                 Debug.LogWarning(
-                    "[GeneratedTransitionFlow] Only Past / Present cards can be selected for a pair. category="
+                    "[GeneratedTransitionFlow] Only Past / Present cards can be selected for a link card. category="
                     + category);
                 return;
             }
 
-            RefreshPairSelectionInstruction();
-
-            if (selectedPastCard != null && selectedPresentCard != null)
-            {
-                ShowTransitionGenerationPrompt();
-            }
+            ShowTransitionGenerationPrompt();
         }
 
         public void ShowTransitionGenerationPrompt()
@@ -1964,10 +1970,10 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            if (selectedPastCard == null || selectedPresentCard == null)
+            if (!HasSelectedLinkSource)
             {
-                Debug.LogWarning("[GeneratedTransitionFlow] Need one Past and one Present card before showing the generation prompt.");
-                RefreshPairSelectionInstruction();
+                Debug.LogWarning("[GeneratedTransitionFlow] Need one Past or Present card before showing the generation prompt.");
+                ShowPairSelectionInstruction();
                 return;
             }
 
@@ -2006,9 +2012,14 @@ namespace EchoSpace.LineOfLife
                         "Do not parent this panel under hidden TransitionNode.");
                 }
 
+                bool wasHidden = !transitionGenerationPromptRoot.activeSelf;
                 transitionGenerationPromptRoot.SetActive(true);
                 PlaceTransitionGeneratePanelAboveTransitionNode();
                 BindTransitionVoiceInput();
+                if (wasHidden)
+                {
+                    UiSfx.PlayPopup();
+                }
             }
             else
             {
@@ -2020,6 +2031,7 @@ namespace EchoSpace.LineOfLife
             ApplyTransitionGenerationPromptText();
             HidePairSelectionInstruction();
             SetPairSelectButtonsEnabled(false);
+            SetFinalReflectionSwitchButtonVisible(false);
             Debug.Log("[GeneratedTransitionFlow] Show transition generation prompt");
         }
 
@@ -2030,9 +2042,10 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            if (selectedPastCard == null || selectedPresentCard == null)
+            MemoryAnchorData source = selectedPastCard != null ? selectedPastCard : selectedPresentCard;
+            if (source == null)
             {
-                Debug.LogWarning("[GeneratedTransitionFlow] Cannot generate: Past / Present pair is incomplete.");
+                Debug.LogWarning("[GeneratedTransitionFlow] Cannot generate: no Past or Present card is selected.");
                 return;
             }
 
@@ -2043,8 +2056,7 @@ namespace EchoSpace.LineOfLife
 
             Color groupColor = GetNextPairColor();
             generatedTransitionCard = GeneratedTransitionCardData.Create(
-                selectedPastCard,
-                selectedPresentCard,
+                source,
                 transitionText.Trim(),
                 groupColor);
             _generatedTransitionCards.Add(generatedTransitionCard);
@@ -2067,7 +2079,7 @@ namespace EchoSpace.LineOfLife
             pendingVoiceText = string.Empty;
             ClearCurrentPairSelection();
             UpdateProgressiveButtons();
-            ShowGeneratedCardInstructionThenAutoHide();
+            ShowLinkCardGeneratedInstruction();
             SetFinalReflectionSwitchButtonVisible(true);
 
             Debug.Log(
@@ -2133,12 +2145,10 @@ namespace EchoSpace.LineOfLife
             generatedTransitionCard = null;
             _generatedTransitionCards.Clear();
             pendingVoiceText = string.Empty;
-            _pairInstructionStep = 0;
             _pairSelectButtonsEnabled = false;
-            _pairLookElapsedSeconds = 0f;
+            _awaitingContinueAfterLinkCard = false;
             ResetPairInstructionPose();
-            StopNextCardButtonRoutine();
-            SetNextCardButtonVisible(false);
+            HidePairInstructionChrome();
 
             for (int i = 0; i < _spawnedCards.Count; i++)
             {
@@ -2163,7 +2173,7 @@ namespace EchoSpace.LineOfLife
             }
 
             ApplyGeneratedTransitionNodeVisibility();
-            RefreshPairSelectionInstruction();
+            RefreshAllSelectForPairButtons();
             UpdateProgressiveButtons();
         }
 
@@ -2214,8 +2224,7 @@ namespace EchoSpace.LineOfLife
             RefreshAllSelectForPairButtons();
             Debug.Log(
                 "[LineOfLife3DView] Restored generated progress: cards="
-                + _generatedTransitionCards.Count
-                + ", pairStep=" + _pairInstructionStep);
+                + _generatedTransitionCards.Count);
         }
 
         private void RestoreUsedGeneratedPairVisuals()
@@ -2279,14 +2288,19 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            if (selectedPastCard != null && selectedPresentCard != null)
+            if (HasSelectedLinkSource)
             {
                 ShowTransitionGenerationPrompt(false);
                 return;
             }
 
+            if (_awaitingContinueAfterLinkCard)
+            {
+                ShowLinkCardGeneratedInstruction();
+                return;
+            }
+
             ShowPairSelectionInstruction();
-            RefreshPairSelectionInstruction();
         }
 
         private MemoryCard3DUI FindSpawnedMemoryCard(MemoryAnchorData data)
@@ -2437,19 +2451,29 @@ namespace EchoSpace.LineOfLife
 
         private void ClearCurrentPairSelection()
         {
+            ClearPastSelectionVisual();
+            ClearPresentSelectionVisual();
+        }
+
+        private void ClearPastSelectionVisual()
+        {
             if (selectedPastCardUi != null)
             {
                 selectedPastCardUi.SetPairSelected(false);
             }
 
+            selectedPastCard = null;
+            selectedPastCardUi = null;
+        }
+
+        private void ClearPresentSelectionVisual()
+        {
             if (selectedPresentCardUi != null)
             {
                 selectedPresentCardUi.SetPairSelected(false);
             }
 
-            selectedPastCard = null;
             selectedPresentCard = null;
-            selectedPastCardUi = null;
             selectedPresentCardUi = null;
         }
 
@@ -2492,57 +2516,6 @@ namespace EchoSpace.LineOfLife
             return generatedPairColors[_pairColorIndex % generatedPairColors.Length];
         }
 
-        private void RefreshPairSelectionInstruction()
-        {
-            if (!UseGeneratedFlow)
-            {
-                return;
-            }
-
-            if (ApplyPracticeModePairInstruction())
-            {
-                return;
-            }
-
-            if (pairSelectionInstructionText == null)
-            {
-                return;
-            }
-
-            if (_pairInstructionStep < 2)
-            {
-                return;
-            }
-
-            if (selectedPastCard != null && selectedPresentCard != null)
-            {
-                HidePairSelectionInstruction();
-                return;
-            }
-
-            StopGeneratedInstructionAutoHide();
-            _pairInstructionStep = 2;
-            StopNextCardButtonRoutine();
-            SetNextCardButtonVisible(false);
-            SetPairInstructionTimerVisible(false);
-
-            if (selectedPastCard != null)
-            {
-                pairSelectionInstructionText.text = "已選 Past。請再從「現在」選 1 張卡。";
-                EnsurePairSelectionInstructionVisible();
-                return;
-            }
-
-            if (selectedPresentCard != null)
-            {
-                pairSelectionInstructionText.text = "已選 Present。請再從「過去」選 1 張卡。";
-                EnsurePairSelectionInstructionVisible();
-                return;
-            }
-
-            ShowPairInstructionSelectStep();
-        }
-
         private void EnsurePairSelectionInstructionVisible()
         {
             Transform root = ResolvePairInstructionRoot();
@@ -2560,71 +2533,60 @@ namespace EchoSpace.LineOfLife
             PlacePairInstructionIfNeeded();
         }
 
-        private void ShowPairInstructionLookStep()
+        private void ShowLinkSourceInstruction()
         {
             if (ApplyPracticeModePairInstruction())
             {
                 return;
             }
 
-            _pairInstructionStep = 1;
-            _pairLookElapsedSeconds = 0f;
-            SetPairSelectButtonsEnabled(false);
-            BeginPairInstructionLookStep();
-        }
-
-        private void ResumePairInstructionLookStep()
-        {
-            if (ApplyPracticeModePairInstruction())
+            _awaitingContinueAfterLinkCard = false;
+            HidePairInstructionChrome();
+            if (transitionGenerationPromptRoot != null)
             {
-                return;
+                transitionGenerationPromptRoot.SetActive(false);
             }
 
-            _pairInstructionStep = 1;
-            BeginPairInstructionLookStep();
-        }
-
-        private void BeginPairInstructionLookStep()
-        {
-            if (ApplyPracticeModePairInstruction())
-            {
-                return;
-            }
-
-            StopGeneratedInstructionAutoHide();
-            StopNextCardButtonRoutine();
             if (pairSelectionInstructionText != null)
             {
-                pairSelectionInstructionText.text = pairInstructionLookText;
-            }
-
-            EnsurePairSelectionInstructionVisible();
-            SetPairInstructionTimerVisible(false);
-            SetNextCardButtonVisible(true);
-            SetPairSelectButtonsEnabled(false);
-            RefreshAllSelectForPairButtons();
-        }
-
-        private void ShowPairInstructionSelectStep()
-        {
-            if (ApplyPracticeModePairInstruction())
-            {
-                return;
-            }
-
-            _pairInstructionStep = 2;
-            StopNextCardButtonRoutine();
-            SetNextCardButtonVisible(false);
-            SetPairInstructionTimerVisible(false);
-            if (pairSelectionInstructionText != null)
-            {
-                pairSelectionInstructionText.text = pairInstructionSelectText;
+                pairSelectionInstructionText.text = string.IsNullOrEmpty(pairInstructionText)
+                    ? "請先看一下你剛才放在「轉變前」和「現在」的卡片。\n並選擇一張來生成連結卡"
+                    : pairInstructionText;
             }
 
             EnsurePairSelectionInstructionVisible();
             SetPairSelectButtonsEnabled(true);
             RefreshAllSelectForPairButtons();
-            SetFinalReflectionSwitchButtonVisible(false);
+            SetNextCardButtonVisible(false);
+            SetPairInstructionSwitchVisible(false);
+        }
+
+        private void ShowLinkCardGeneratedInstruction()
+        {
+            if (ApplyPracticeModePairInstruction())
+            {
+                return;
+            }
+
+            _awaitingContinueAfterLinkCard = true;
+            HidePairInstructionChrome();
+            if (transitionGenerationPromptRoot != null)
+            {
+                transitionGenerationPromptRoot.SetActive(false);
+            }
+
+            if (pairSelectionInstructionText != null)
+            {
+                pairSelectionInstructionText.text = string.IsNullOrEmpty(pairInstructionGeneratedText)
+                    ? "連結卡已生成。\n如果還有想整理的記憶，可以按「繼續」再生成一張；如果差不多了，請按「切換視角」進入下一階段。"
+                    : pairInstructionGeneratedText;
+            }
+
+            EnsurePairSelectionInstructionVisible();
+            SetPairSelectButtonsEnabled(false);
+            RefreshAllSelectForPairButtons();
+            SetNextCardButtonVisible(true);
+            SetPairInstructionSwitchVisible(true);
         }
 
         private void RefreshAllSelectForPairButtons()
@@ -2648,12 +2610,23 @@ namespace EchoSpace.LineOfLife
         private void ApplyTransitionGenerationPromptText()
         {
             TMP_Text prompt = ResolveTransitionGenerationPromptLabel();
-            if (prompt == null || string.IsNullOrEmpty(transitionGenerationPromptText))
+            if (prompt == null)
             {
                 return;
             }
 
-            prompt.text = transitionGenerationPromptText;
+            bool fromPast = selectedPastCard != null;
+            string text = fromPast
+                ? transitionGenerationPastPromptText
+                : transitionGenerationPresentPromptText;
+            if (string.IsNullOrEmpty(text))
+            {
+                text = fromPast
+                    ? "現在的你和這張讓你回想到過去狀態的記憶卡片有什麼不同？ 是什麼事情、經驗，或是這段生活轉變，讓你有所改變的？"
+                    : "為什麼在經歷生活轉變後，這張記憶卡仍然讓你覺得是現在自己的一部分？\n是否是因為什麼事情或經驗奠定的？";
+            }
+
+            prompt.text = text;
         }
 
         private TMP_Text ResolveTransitionGenerationPromptLabel()
@@ -2674,30 +2647,21 @@ namespace EchoSpace.LineOfLife
             return found.GetComponent<TMP_Text>();
         }
 
-        private void RegisterNextCardButton()
+        private void HidePairInstructionChrome()
         {
             ResolveNextCardButton();
-            ResolvePairInstructionTimer();
-            SetPairInstructionTimerVisible(false);
-            if (nextCardButton == null)
-            {
-                Debug.LogWarning(
-                    "[GeneratedTransitionFlow] NextcardButton is not assigned. " +
-                    "Name it NextcardButton under the pair instruction, or drag it onto LineOfLife3DViewController.");
-                return;
-            }
-
-            nextCardButton.onClick.RemoveListener(OnNextCardButtonClicked);
-            nextCardButton.onClick.AddListener(OnNextCardButtonClicked);
-            SetNextCardButtonVisible(false);
-        }
-
-        private void UnbindNextCardButton()
-        {
             if (nextCardButton != null)
             {
-                nextCardButton.onClick.RemoveListener(OnNextCardButtonClicked);
+                nextCardButton.gameObject.SetActive(false);
             }
+
+            ResolvePairInstructionTimer();
+            if (pairInstructionTimerText != null)
+            {
+                pairInstructionTimerText.gameObject.SetActive(false);
+            }
+
+            SetPairInstructionSwitchVisible(false);
         }
 
         private void ResolveNextCardButton()
@@ -2724,6 +2688,44 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void RegisterNextCardButton()
+        {
+            ResolveNextCardButton();
+            HidePairInstructionChrome();
+            if (nextCardButton == null)
+            {
+                return;
+            }
+
+            nextCardButton.onClick.RemoveListener(OnNextCardButtonClicked);
+            nextCardButton.onClick.AddListener(OnNextCardButtonClicked);
+            UiSfx.BindClick(nextCardButton);
+        }
+
+        private void UnbindNextCardButton()
+        {
+            if (nextCardButton != null)
+            {
+                nextCardButton.onClick.RemoveListener(OnNextCardButtonClicked);
+            }
+        }
+
+        private void SetNextCardButtonVisible(bool visible)
+        {
+            if (IsOpeningPracticeActive())
+            {
+                visible = false;
+            }
+
+            ResolveNextCardButton();
+            if (nextCardButton == null)
+            {
+                return;
+            }
+
+            nextCardButton.gameObject.SetActive(visible);
+        }
+
         private void OnNextCardButtonClicked()
         {
             if (IsOpeningPracticeActive())
@@ -2731,38 +2733,40 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            Debug.Log("[GeneratedTransitionFlow] NextcardButton clicked");
-            ShowPairInstructionSelectStep();
+            Debug.Log("[GeneratedTransitionFlow] Continue clicked after link card");
+            SetPairInstructionSwitchVisible(false);
+            ShowLinkSourceInstruction();
         }
 
-        private IEnumerator ShowNextCardButtonAfterDelay()
+        private void SetPairInstructionSwitchVisible(bool visible)
         {
-            float delay = nextCardButtonDelaySeconds > 0f ? nextCardButtonDelaySeconds : 30f;
-            float elapsed = Mathf.Max(0f, _pairLookElapsedSeconds);
-            bool nextShown = elapsed >= delay;
-            SetPairInstructionTimerVisible(true);
-            SetPairInstructionTimerSeconds(elapsed);
-            if (nextShown)
+            SetFinalReflectionSwitchButtonVisible(visible);
+
+            Transform root = ResolvePairInstructionRoot();
+            if (root == null)
             {
-                SetNextCardButtonVisible(true);
+                return;
             }
 
-            while (_pairInstructionStep == 1 && _pairInstructionVisible)
+            Transform allCanvas = FindChildByName(root, "AllButtonCanvas");
+            if (allCanvas != null)
             {
-                SetPairInstructionTimerSeconds(elapsed);
-                _pairLookElapsedSeconds = elapsed;
-                if (!nextShown && elapsed >= delay)
-                {
-                    SetNextCardButtonVisible(true);
-                    nextShown = true;
-                }
-
-                yield return null;
-                elapsed += Time.deltaTime;
+                allCanvas.gameObject.SetActive(visible);
             }
 
-            _pairLookElapsedSeconds = elapsed;
-            _nextCardButtonRoutine = null;
+            Transform allButton = FindChildByName(root, "AllButton");
+            if (allButton != null)
+            {
+                allButton.gameObject.SetActive(visible);
+            }
+
+            Transform switchUnderPair = FindChildByName(root, "SwitchButton");
+            if (switchUnderPair != null
+                && (finalReflectionSwitchButton == null
+                    || switchUnderPair != finalReflectionSwitchButton.transform))
+            {
+                switchUnderPair.gameObject.SetActive(visible);
+            }
         }
 
         private void ResolvePairInstructionTimer()
@@ -2773,10 +2777,8 @@ namespace EchoSpace.LineOfLife
                 {
                     pairInstructionTimerText = null;
                 }
-                else
-                {
-                    return;
-                }
+
+                return;
             }
 
             Transform searchRoot = ResolvePairInstructionRoot();
@@ -2784,11 +2786,6 @@ namespace EchoSpace.LineOfLife
             if (found == null && pairSelectionInstructionText != null)
             {
                 found = FindChildByName(pairSelectionInstructionText.transform, "Timer", "TimerText", "PairInstructionTimer");
-            }
-
-            if (found == null)
-            {
-                found = FindPairInstructionTimerByDisplayText(searchRoot);
             }
 
             if (found == null)
@@ -2806,88 +2803,6 @@ namespace EchoSpace.LineOfLife
             {
                 pairInstructionTimerText = null;
             }
-        }
-
-        private static Transform FindPairInstructionTimerByDisplayText(Transform root)
-        {
-            if (root == null)
-            {
-                return null;
-            }
-
-            TMP_Text[] texts = root.GetComponentsInChildren<TMP_Text>(true);
-            for (int i = 0; i < texts.Length; i++)
-            {
-                TMP_Text text = texts[i];
-                if (text == null)
-                {
-                    continue;
-                }
-
-                string value = text.text;
-                if (!string.IsNullOrEmpty(value) && value.Trim().StartsWith("00:00"))
-                {
-                    return text.transform;
-                }
-            }
-
-            return null;
-        }
-
-        private void SetPairInstructionTimerVisible(bool visible)
-        {
-            ResolvePairInstructionTimer();
-            if (pairInstructionTimerText == null)
-            {
-                return;
-            }
-
-            if (!visible)
-            {
-                SetPairInstructionTimerSeconds(0f);
-            }
-
-            pairInstructionTimerText.gameObject.SetActive(visible);
-        }
-
-        private void SetPairInstructionTimerSeconds(float seconds)
-        {
-            if (pairInstructionTimerText == null)
-            {
-                return;
-            }
-
-            int total = Mathf.Max(0, Mathf.FloorToInt(seconds));
-            int minutes = total / 60;
-            int remainder = total % 60;
-            pairInstructionTimerText.text = string.Format("{0:00}:{1:00}", minutes, remainder);
-        }
-
-        private void StopNextCardButtonRoutine()
-        {
-            if (_nextCardButtonRoutine == null)
-            {
-                return;
-            }
-
-            StopCoroutine(_nextCardButtonRoutine);
-            _nextCardButtonRoutine = null;
-        }
-
-        private void SetNextCardButtonVisible(bool visible)
-        {
-            if (IsOpeningPracticeActive())
-            {
-                visible = false;
-            }
-
-            ResolveNextCardButton();
-            if (nextCardButton == null)
-            {
-                return;
-            }
-
-            nextCardButton.gameObject.SetActive(visible);
         }
 
         private static bool IsOpeningPracticeActive()
@@ -2908,10 +2823,6 @@ namespace EchoSpace.LineOfLife
                 return true;
             }
 
-            _pairInstructionStep = 0;
-            StopGeneratedInstructionAutoHide();
-            StopNextCardButtonRoutine();
-            SetPairInstructionTimerVisible(false);
             SetPairSelectButtonsEnabled(false);
             RefreshAllSelectForPairButtons();
 
@@ -2925,7 +2836,7 @@ namespace EchoSpace.LineOfLife
             }
 
             _pairInstructionVisible = true;
-            SetNextCardButtonVisible(false);
+            HidePairInstructionChrome();
             PlacePairInstructionIfNeeded();
             return true;
         }
@@ -3229,10 +3140,7 @@ namespace EchoSpace.LineOfLife
 
         private void HidePairSelectionInstruction()
         {
-            StopGeneratedInstructionAutoHide();
-            StopNextCardButtonRoutine();
-            SetNextCardButtonVisible(false);
-            SetPairInstructionTimerVisible(false);
+            HidePairInstructionChrome();
             _pairInstructionVisible = false;
             SetPairSelectButtonsEnabled(false);
             Transform root = ResolvePairInstructionRoot();
@@ -3240,68 +3148,6 @@ namespace EchoSpace.LineOfLife
             {
                 root.gameObject.SetActive(false);
             }
-        }
-
-        private void ShowGeneratedCardInstructionThenAutoHide()
-        {
-            if (ApplyPracticeModePairInstruction())
-            {
-                return;
-            }
-
-            Transform root = ResolvePairInstructionRoot();
-            if (root != null)
-            {
-                root.gameObject.SetActive(true);
-            }
-
-            if (pairSelectionInstructionText != null)
-            {
-                pairSelectionInstructionText.gameObject.SetActive(true);
-                pairSelectionInstructionText.text = GeneratedTransitionCardInstruction;
-            }
-
-            StopNextCardButtonRoutine();
-            SetNextCardButtonVisible(true);
-            SetPairInstructionTimerVisible(false);
-
-            _pairInstructionStep = 1;
-            _pairInstructionVisible = true;
-            SetPairSelectButtonsEnabled(false);
-            PlacePairInstructionIfNeeded();
-            StopGeneratedInstructionAutoHide();
-        }
-
-        private void RestartGeneratedInstructionAutoHide()
-        {
-            StopGeneratedInstructionAutoHide();
-            if (!isActiveAndEnabled)
-            {
-                return;
-            }
-
-            _generatedInstructionAutoHideRoutine = StartCoroutine(AutoHideGeneratedInstructionAfterDelay());
-        }
-
-        private void StopGeneratedInstructionAutoHide()
-        {
-            if (_generatedInstructionAutoHideRoutine == null)
-            {
-                return;
-            }
-
-            StopCoroutine(_generatedInstructionAutoHideRoutine);
-            _generatedInstructionAutoHideRoutine = null;
-        }
-
-        private IEnumerator AutoHideGeneratedInstructionAfterDelay()
-        {
-            float seconds = generatedInstructionAutoHideSeconds > 0f
-                ? generatedInstructionAutoHideSeconds
-                : 10f;
-            yield return new WaitForSeconds(seconds);
-            _generatedInstructionAutoHideRoutine = null;
-            HidePairSelectionInstruction();
         }
 
         private Transform ResolvePairInstructionRoot()
@@ -3352,25 +3198,22 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            if (_pairInstructionStep >= 2 && selectedPastCard != null && selectedPresentCard != null)
+            if (HasSelectedLinkSource)
             {
                 ShowTransitionGenerationPrompt(false);
-            }
-            else if (_pairSelectButtonsEnabled || _pairInstructionStep >= 2)
-            {
-                ShowPairInstructionSelectStep();
-            }
-            else if (_pairInstructionStep == 1)
-            {
-                ResumePairInstructionLookStep();
-            }
-            else
-            {
-                ShowPairInstructionLookStep();
+                return;
             }
 
+            if (_awaitingContinueAfterLinkCard)
+            {
+                ShowLinkCardGeneratedInstruction();
+                PlacePairInstructionIfNeeded();
+                return;
+            }
+
+            ShowLinkSourceInstruction();
             PlacePairInstructionIfNeeded();
-            Debug.Log("[GeneratedTransitionFlow] Pair instruction shown in front of user");
+            Debug.Log("[GeneratedTransitionFlow] Link-card instruction shown in front of user");
         }
 
         private void PlacePairInstructionIfNeeded()
@@ -3565,7 +3408,23 @@ namespace EchoSpace.LineOfLife
 
         private void FacePairInstructionToCameraIfNeeded(Transform target)
         {
-            if (!pairInstructionFaceCamera || target == null)
+            FaceWorldUiTowardCamera(target, pairInstructionFaceCamera, false, false);
+        }
+
+        private void PlaceTransitionGeneratePanelAboveTransitionNode()
+        {
+            if (!ApplyGeneratePanelPosition())
+            {
+                Debug.LogWarning("[GeneratedTransitionFlow] Cannot place TransitionGeneratePanel; missing panel or pair-instruction position.");
+                return;
+            }
+
+            EnsureGeneratePanelBillboard();
+        }
+
+        private void FaceWorldUiTowardCamera(Transform target, bool enabled, bool lockYOnly, bool flip180)
+        {
+            if (!enabled || target == null)
             {
                 return;
             }
@@ -3576,44 +3435,111 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            Vector3 dir = target.position - cam.position;
-            if (dir.sqrMagnitude > 0.001f)
+            Vector3 toCamera = cam.position - target.position;
+            if (lockYOnly)
             {
-                target.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                toCamera.y = 0f;
             }
-        }
 
-        private void PlaceTransitionGeneratePanelAboveTransitionNode()
-        {
-            Transform target = ResolveTransitionGeneratePanelTransform();
-            Transform cam = ResolvePlayerCameraTransform();
-            Transform node = ResolveTransitionNodeTransform();
-            if (target == null || cam == null || node == null)
+            if (toCamera.sqrMagnitude <= 0.001f)
             {
-                Debug.LogWarning("[GeneratedTransitionFlow] Cannot place TransitionGeneratePanel; missing panel, camera, or Transition node.");
                 return;
             }
 
-            target.position = node.position + Vector3.up * generatePanelHeightOffset;
-
-            if (generatePanelFaceCamera)
-            {
-                Vector3 dir = target.position - cam.position;
-                if (generatePanelLockYOnly)
-                {
-                    dir.y = 0f;
-                }
-
-                if (dir.sqrMagnitude > 0.001f)
-                {
-                    target.rotation = Quaternion.LookRotation(dir.normalized, Vector3.up);
-                }
-            }
-
-            if (generatePanelFlip180)
+            target.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
+            if (flip180)
             {
                 target.Rotate(0f, 180f, 0f, Space.Self);
             }
+        }
+
+        private bool IsTransitionGeneratePanelVisible()
+        {
+            return transitionGenerationPromptRoot != null
+                && transitionGenerationPromptRoot.activeInHierarchy;
+        }
+
+        private bool ApplyGeneratePanelPosition()
+        {
+            Transform target = ResolveTransitionGeneratePanelTransform();
+            if (target == null)
+            {
+                return false;
+            }
+
+            Vector3 pairPos;
+            if (!TryGetPairInstructionWorldPosition(out pairPos))
+            {
+                return false;
+            }
+
+            target.position = pairPos;
+            return true;
+        }
+
+        private bool TryGetPairInstructionWorldPosition(out Vector3 worldPosition)
+        {
+            if (_pairInstructionPlaced)
+            {
+                worldPosition = _pairInstructionWorldPosition;
+                return true;
+            }
+
+            Transform pairRoot = ResolvePairInstructionRoot();
+            if (pairRoot != null && pairRoot.gameObject.activeInHierarchy)
+            {
+                worldPosition = pairRoot.position;
+                return true;
+            }
+
+            Transform node = ResolveTransitionNodeTransform();
+            if (placePairInstructionAtTransitionNode && node != null)
+            {
+                worldPosition = node.TransformPoint(pairInstructionOffsetFromTransitionNode);
+                return true;
+            }
+
+            Transform cam = ResolvePlayerCameraTransform();
+            if (keepPairInstructionInFrontOfUser && cam != null)
+            {
+                worldPosition = cam.position
+                    + cam.forward * pairInstructionDistanceFromCamera
+                    + cam.up * pairInstructionHeightOffset;
+                return true;
+            }
+
+            worldPosition = Vector3.zero;
+            return false;
+        }
+
+        private void EnsureGeneratePanelBillboard()
+        {
+            Transform visual = ResolveTransitionGeneratePanelTransform();
+            if (visual == null)
+            {
+                return;
+            }
+
+            BillboardToCamera billboard = visual.GetComponent<BillboardToCamera>();
+            if (!generatePanelFaceCamera)
+            {
+                if (billboard != null)
+                {
+                    billboard.enabled = false;
+                }
+
+                return;
+            }
+
+            if (billboard == null)
+            {
+                billboard = visual.gameObject.AddComponent<BillboardToCamera>();
+            }
+
+            billboard.targetCamera = ResolvePlayerCameraTransform();
+            billboard.lockYOnly = false;
+            billboard.flip180 = true;
+            billboard.enabled = true;
         }
 
         private Transform ResolveTransitionNodeTransform()

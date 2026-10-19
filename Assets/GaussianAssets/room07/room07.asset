@@ -10,22 +10,22 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 33b71fae31e6c7d438e8566dc713e666, type: 3}
-  m_Name: room02_3_25000
+  m_Name: room07
   m_EditorClassIdentifier: 
   m_FormatVersion: 20231020
-  m_SplatCount: 623803
-  m_BoundsMin: {x: -11.13422, y: -19.061182, z: -32.875435}
-  m_BoundsMax: {x: 42.099262, y: 41.972755, z: 12.575017}
+  m_SplatCount: 2826176
+  m_BoundsMin: {x: -80.433754, y: -48.2852, z: -133.75015}
+  m_BoundsMax: {x: 84.38008, y: 59.110947, z: 88.01193}
   m_DataHash:
     serializedVersion: 2
-    Hash: fd7e73c87d21b3dc88f058464478523a
+    Hash: 6978940e7d7c8173db0b31ffed09ca20
   m_PosFormat: 0
   m_ScaleFormat: 0
   m_SHFormat: 0
   m_ColorFormat: 0
-  m_PosData: {fileID: 4900000, guid: d9749a21de1120a4c96566a3463a76b0, type: 3}
-  m_ColorData: {fileID: 4900000, guid: 4523c50d4f366f545895a5e9bb943569, type: 3}
-  m_OtherData: {fileID: 4900000, guid: a80895ceb5277e64ba71e7d0f4c40176, type: 3}
-  m_SHData: {fileID: 4900000, guid: 0c9cf5d48dc61144bb9d074e420fb9c1, type: 3}
+  m_PosData: {fileID: 4900000, guid: 922a4258ed3f1f64c8257afe04284cfd, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 2d631b2c8d312fa4595ee0ae29647a34, type: 3}
+  m_OtherData: {fileID: 4900000, guid: f5563057e11e1754d827f89ed218bb32, type: 3}
+  m_SHData: {fileID: 4900000, guid: d1dc46538b7667b43807265acbeb65c9, type: 3}
   m_ChunkData: {fileID: 0}
   m_Cameras: []

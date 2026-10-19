@@ -64,6 +64,8 @@ namespace EchoSpace.UI
         [SerializeField] private GameObject[] roomRootsToEnableAfterIntro;
         [Tooltip("Stay active from black-environment start through after intro. Typical: Room02_Floor. Unparented at runtime if a hidden ancestor would hide them.")]
         [SerializeField] private GameObject[] objectsToKeepVisibleDuringIntro;
+        [Tooltip("Hidden during practice and intro, then shown with Room_3DGS after intro. Auto-finds a scene object named Ceiling if empty.")]
+        [SerializeField] private GameObject ceilingToShowAfterIntro;
         [SerializeField] private bool hideRoomDuringIntro = true;
         [SerializeField] private bool useBlackSphereIntro = true;
         [SerializeField] private bool centerSphereOnPlayerAtStart = true;
@@ -91,6 +93,9 @@ namespace EchoSpace.UI
         private Material _sphereMaterialInstance;
         private bool[] _hiddenRoomWasActive;
         private bool _hiddenRoomStatesCached;
+        private GameObject _resolvedCeiling;
+        private bool _ceilingWasActive;
+        private bool _ceilingStateCached;
         private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
         private readonly List<XRInputDevice> _rightHandDevices = new List<XRInputDevice>();
 
@@ -332,6 +337,7 @@ namespace EchoSpace.UI
 
             CacheAndHideRoomRoots();
             SetRoomArrayActive(roomRootsToEnableAfterIntro, false);
+            HideCeilingUntilIntroEnds();
             KeepVisibleObjectsForIntro();
         }
 
@@ -381,6 +387,7 @@ namespace EchoSpace.UI
         {
             RestoreHiddenRoomOriginalStates();
             SetRoomArrayActive(roomRootsToEnableAfterIntro, true);
+            RestoreCeilingAfterIntro();
             KeepVisibleObjectsForIntro();
         }
 
@@ -400,6 +407,85 @@ namespace EchoSpace.UI
                     root.SetActive(_hiddenRoomWasActive[i]);
                 }
             }
+        }
+
+        private void HideCeilingUntilIntroEnds()
+        {
+            GameObject ceiling = ResolveCeiling();
+            if (ceiling == null || IsListedInRoomArrays(ceiling))
+            {
+                return;
+            }
+
+            if (!_ceilingStateCached)
+            {
+                _ceilingWasActive = ceiling.activeSelf;
+                _ceilingStateCached = true;
+            }
+
+            ceiling.SetActive(false);
+        }
+
+        private void RestoreCeilingAfterIntro()
+        {
+            GameObject ceiling = ResolveCeiling();
+            if (ceiling == null || IsListedInRoomArrays(ceiling))
+            {
+                return;
+            }
+
+            ceiling.SetActive(_ceilingStateCached ? _ceilingWasActive : true);
+        }
+
+        private GameObject ResolveCeiling()
+        {
+            if (_resolvedCeiling != null)
+            {
+                return _resolvedCeiling;
+            }
+
+            if (ceilingToShowAfterIntro != null)
+            {
+                _resolvedCeiling = ceilingToShowAfterIntro;
+                return _resolvedCeiling;
+            }
+
+            Transform[] transforms = FindObjectsOfType<Transform>(true);
+            for (int i = 0; i < transforms.Length; i++)
+            {
+                Transform t = transforms[i];
+                if (t != null && t.name == "Ceiling")
+                {
+                    _resolvedCeiling = t.gameObject;
+                    break;
+                }
+            }
+
+            return _resolvedCeiling;
+        }
+
+        private bool IsListedInRoomArrays(GameObject target)
+        {
+            return ContainsRoom(roomRootsToHideDuringIntro, target)
+                || ContainsRoom(roomRootsToEnableAfterIntro, target);
+        }
+
+        private static bool ContainsRoom(GameObject[] rooms, GameObject target)
+        {
+            if (rooms == null || target == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < rooms.Length; i++)
+            {
+                if (rooms[i] == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void SetRoomArrayActive(GameObject[] rooms, bool active)

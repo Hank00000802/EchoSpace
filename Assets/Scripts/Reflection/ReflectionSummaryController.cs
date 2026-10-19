@@ -1,4 +1,5 @@
 using EchoSpace.LineOfLife;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -42,9 +43,15 @@ namespace EchoSpace.Reflection
 
         public void Open(string summary)
         {
+            bool wasOpen = panelRoot != null && panelRoot.activeSelf;
             if (panelRoot != null)
             {
                 panelRoot.SetActive(true);
+            }
+
+            if (!wasOpen)
+            {
+                UiSfx.PlayPopup();
             }
 
             if (titleText != null)
@@ -82,9 +89,15 @@ namespace EchoSpace.Reflection
 
         public void Close()
         {
+            bool wasOpen = panelRoot != null && panelRoot.activeSelf;
             if (panelRoot != null)
             {
                 panelRoot.SetActive(false);
+            }
+
+            if (wasOpen)
+            {
+                UiSfx.PlayExit();
             }
 
             Debug.Log("[ReflectionSummaryController] Close summary panel.");

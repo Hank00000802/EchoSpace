@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using EchoSpace.Annotation;
 using EchoSpace.Core;
+using EchoSpace.UI;
 using EchoSpace.VoiceInput;
 using TMPro;
 using UnityEngine;
@@ -201,6 +202,7 @@ public class AnnotationPanelController : MonoBehaviour
             Debug.Log("[AnnotationPanel] Category selected: " + type);
             onSelect();
         });
+        UiSfx.BindClick(button);
     }
 
     public void Open(MemoryAnchor anchor)
@@ -216,6 +218,8 @@ public class AnnotationPanelController : MonoBehaviour
             RefreshCategoryButtonVisuals();
             return;
         }
+
+        bool wasOpen = IsOpen;
 
         if (currentAnchor != null && currentAnchor != anchor)
         {
@@ -273,12 +277,18 @@ public class AnnotationPanelController : MonoBehaviour
 
         IgnorePracticeObjectsWhilePanelOpen();
 
+        if (!wasOpen)
+        {
+            UiSfx.PlayPopup();
+        }
+
         string id = anchor.Data != null ? anchor.Data.id : "(no data)";
         Debug.Log("[AnnotationPanelController] Open — editing anchor: " + anchor.gameObject.name + ", id=" + id);
     }
 
     public void ForceCloseWithoutSaving()
     {
+        bool wasOpen = IsOpen;
         HandleCloseOrSwitchCurrentAnchor();
         ClearEditingState();
 
@@ -288,11 +298,17 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         RestorePracticeObjectColliders();
+        if (wasOpen)
+        {
+            UiSfx.PlayExit();
+        }
+
         Debug.Log("[AnnotationPanelController] Force closed panel without saving.");
     }
 
     public void Close()
     {
+        bool wasOpen = IsOpen;
         HandleCloseOrSwitchCurrentAnchor();
         ClearEditingState();
 
@@ -302,6 +318,11 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         RestorePracticeObjectColliders();
+        if (wasOpen)
+        {
+            UiSfx.PlayExit();
+        }
+
         ShowCurrentModeGuideAfterClose();
         Debug.Log("[AnnotationPanelController] Closed without saving (cancel).");
     }
@@ -329,6 +350,7 @@ public class AnnotationPanelController : MonoBehaviour
         hasCommittedSaveThisSession = true;
 
         currentAnchor.UpdateVisualLabel();
+        bool wasOpen = IsOpen;
 
         Debug.Log(
             "[AnnotationPanelController] Saved — id=" + data.id
@@ -344,12 +366,23 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         RestorePracticeObjectColliders();
+        if (wasOpen)
+        {
+            UiSfx.PlayExit();
+        }
+
         ShowCurrentModeGuideAfterClose();
         Debug.Log("[AnnotationPanelController] Save complete, panel closed.");
     }
 
     private void ShowCurrentModeGuideAfterClose()
     {
+        AirAnchorPlacementTester tester = FindObjectOfType<AirAnchorPlacementTester>();
+        if (tester != null && !tester.IsAnyBlockingPanelOpen())
+        {
+            tester.SetXRInteractionMode(XRInteractionMode.Marking);
+        }
+
         EchoSpace.UI.TutorialOverlayController overlay =
             FindObjectOfType<EchoSpace.UI.TutorialOverlayController>();
         if (overlay != null)

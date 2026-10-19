@@ -67,6 +67,7 @@ namespace EchoSpace.LineOfLife
             if (finishButton != null)
             {
                 finishButton.onClick.AddListener(CompleteLineOfLife);
+                UiSfx.BindClick(finishButton);
             }
 
             EnsureLineOfLifeCanvasForXR();
@@ -182,9 +183,11 @@ namespace EchoSpace.LineOfLife
                 PlaceLineOfLifePanelInFrontOfPlayer();
                 ApplyPracticeTextVisibility(true);
                 RefreshCards();
+                UiSfx.PlayPopup();
             }
             else
             {
+                UiSfx.PlayExit();
                 ShowExplorationModeGuideAfterClose();
             }
         }
@@ -212,11 +215,17 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
+            bool wasOpen = lineOfLifePanel.activeSelf;
             lineOfLifePanel.SetActive(true);
             EnsureLineOfLifeCanvasForXR();
             PlaceLineOfLifePanelInFrontOfPlayer();
             ApplyPracticeTextVisibility(true);
             RefreshCards();
+            if (!wasOpen)
+            {
+                UiSfx.PlayPopup();
+            }
+
             Debug.Log("[LineOfLifeManager] OpenPanelAndRefresh called.");
         }
 

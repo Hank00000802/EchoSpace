@@ -1,4 +1,5 @@
 using EchoSpace.Core;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -198,6 +199,7 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
+            UiSfx.PlayClick();
             OpenDetailPanel();
         }
 

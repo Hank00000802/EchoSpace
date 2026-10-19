@@ -1,4 +1,5 @@
 using System.Collections;
+using EchoSpace.UI;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
@@ -148,16 +149,33 @@ namespace EchoSpace.SwitchView
                 PlacePromptInFrontOfCamera();
             }
 
+            bool wasActive = switchViewRoot.activeSelf;
             switchViewRoot.SetActive(true);
             EnsureSwitchViewUiRaycast();
+            if (!wasActive)
+            {
+                UiSfx.PlayPopup();
+            }
+
             Debug.Log("[SwitchViewController] Show switch view prompt.");
         }
 
         public void HideSwitchViewPrompt()
         {
+            HideSwitchViewPrompt(true);
+        }
+
+        public void HideSwitchViewPrompt(bool playExit)
+        {
+            bool wasActive = switchViewRoot != null && switchViewRoot.activeSelf;
             if (switchViewRoot != null)
             {
                 switchViewRoot.SetActive(false);
+            }
+
+            if (playExit && wasActive)
+            {
+                UiSfx.PlayExit();
             }
 
             Debug.Log("[SwitchViewController] Hide switch view prompt.");
@@ -186,6 +204,8 @@ namespace EchoSpace.SwitchView
                 StopCoroutine(smoothMoveCoroutine);
                 smoothMoveCoroutine = null;
             }
+
+            UiSfx.PlayPopup();
 
             if (useSmoothMove && smoothMoveDuration > 0f)
             {
@@ -308,7 +328,7 @@ namespace EchoSpace.SwitchView
             Debug.Log("[SwitchViewController] Switched to target view: " + targetViewTransform.name);
 
             // Always hide large Switch View UI after arriving, to protect immersion.
-            HideSwitchViewPrompt();
+            HideSwitchViewPrompt(false);
 
             onSwitchCompleted?.Invoke();
         }

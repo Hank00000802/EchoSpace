@@ -63,6 +63,7 @@ namespace EchoSpace.UI
         private bool _rightJoystickWasPushed;
         private bool _showSwitchModeGuideThisFrame;
         private bool _switchModeGuideVisible;
+        private bool _allowUiSfx;
         private Coroutine _switchModeGuideHideRoutine;
         private Transform _switchModeGuideOriginalParent;
         private AirAnchorPlacementTester _placementTester;
@@ -110,6 +111,8 @@ namespace EchoSpace.UI
             {
                 EnterTutorialMode();
             }
+
+            _allowUiSfx = true;
         }
 
         private void Update()
@@ -190,6 +193,11 @@ namespace EchoSpace.UI
 
         private void ShowSwitchModeGuide()
         {
+            ShowSwitchModeGuide(true);
+        }
+
+        private void ShowSwitchModeGuide(bool playPopup)
+        {
             ResolveSwitchModeGuide();
             if (switchModeGuide == null)
             {
@@ -213,10 +221,15 @@ namespace EchoSpace.UI
                 _switchModeGuideOriginalParent = switchModeGuide.transform.parent;
             }
 
+            bool alreadyVisible = _switchModeGuideVisible;
             switchModeGuide.SetActive(true);
             EnsureSwitchModeGuideCanvasSorting();
             PlaceSwitchModeGuideInView();
             _switchModeGuideVisible = true;
+            if (playPopup && _allowUiSfx && !alreadyVisible)
+            {
+                UiSfx.PlayPopup();
+            }
 
             StopSwitchModeGuideHide();
             if (!IsAnyTutorialActive())
@@ -229,9 +242,19 @@ namespace EchoSpace.UI
 
         private void HideSwitchModeGuide()
         {
+            HideSwitchModeGuide(false);
+        }
+
+        private void HideSwitchModeGuide(bool playExit)
+        {
+            bool wasVisible = _switchModeGuideVisible;
             StopSwitchModeGuideHide();
             _switchModeGuideVisible = false;
             _showSwitchModeGuideThisFrame = false;
+            if (playExit && wasVisible && _allowUiSfx)
+            {
+                UiSfx.PlayExit();
+            }
 
             if (switchModeGuide == null)
             {
@@ -251,7 +274,7 @@ namespace EchoSpace.UI
         {
             yield return new WaitForSeconds(seconds);
             _switchModeGuideHideRoutine = null;
-            HideSwitchModeGuide();
+            HideSwitchModeGuide(true);
         }
 
         private void StopSwitchModeGuideHide()
@@ -455,14 +478,28 @@ namespace EchoSpace.UI
 
             ShowOnlyLeftGripHint();
             CaptureHintInputEdges();
-            ShowSwitchModeGuide();
+            ShowSwitchModeGuide(false);
+            if (_allowUiSfx)
+            {
+                UiSfx.PlayPopup();
+            }
+
             Debug.Log("[TutorialOverlay] Tutorial mode ON");
         }
 
         private void ExitTutorialMode()
         {
+            bool overlayShowing = IsTutorialModeActive
+                && (overlayRoot == null
+                    || overlayRoot == gameObject
+                    || overlayRoot.activeSelf);
             IsTutorialModeActive = false;
-            HideSwitchModeGuide();
+            if (_allowUiSfx && overlayShowing)
+            {
+                UiSfx.PlayExit();
+            }
+
+            HideSwitchModeGuide(false);
             HideAllHints();
 
             if (overlayRoot != null && overlayRoot != gameObject)

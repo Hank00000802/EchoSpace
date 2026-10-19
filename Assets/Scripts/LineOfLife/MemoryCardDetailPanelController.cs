@@ -1,4 +1,5 @@
 using EchoSpace.Core;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -57,6 +58,11 @@ namespace EchoSpace.LineOfLife
 
         public void Open(MemoryAnchorData data)
         {
+            Open(data, null);
+        }
+
+        public void Open(MemoryAnchorData data, GeneratedTransitionCardData generated)
+        {
             if (panelRoot == null)
             {
                 Debug.LogWarning("[MemoryCardDetail] panelRoot is not assigned.");
@@ -67,23 +73,46 @@ namespace EchoSpace.LineOfLife
                 ? data.userText
                 : "（尚未輸入文字）";
 
-            if (titleText != null)
+            if (generated != null)
             {
-                titleText.text = "記憶詳情";
-            }
+                if (titleText != null)
+                {
+                    titleText.text = string.IsNullOrEmpty(generated.displayTitle)
+                        ? "連結卡"
+                        : generated.displayTitle;
+                }
 
-            if (typeText != null)
-            {
-                typeText.text = data != null
-                    ? MemoryTypeDisplay.GetDisplayName(data.memoryType)
-                    : string.Empty;
-            }
+                string sourcePhase = generated.pastCard != null ? "轉變前" : "現在";
+                if (typeText != null)
+                {
+                    typeText.text = sourcePhase;
+                }
 
-            if (phaseText != null)
+                if (phaseText != null)
+                {
+                    phaseText.text = "階段：" + sourcePhase;
+                }
+            }
+            else
             {
-                phaseText.text = data != null
-                    ? GetPhaseDisplayName(data.timeCategory)
-                    : string.Empty;
+                if (titleText != null)
+                {
+                    titleText.text = "記憶詳情";
+                }
+
+                if (typeText != null)
+                {
+                    typeText.text = data != null
+                        ? MemoryTypeDisplay.GetDisplayName(data.memoryType)
+                        : string.Empty;
+                }
+
+                if (phaseText != null)
+                {
+                    phaseText.text = data != null
+                        ? GetPhaseDisplayName(data.timeCategory)
+                        : string.Empty;
+                }
             }
 
             if (contentText != null)
@@ -98,9 +127,14 @@ namespace EchoSpace.LineOfLife
                 PlacePanelInFrontOfPlayer();
             }
 
+            bool wasOpen = panelRoot.activeSelf;
             // Activate first so Viewport width is valid for preferredHeight.
             panelRoot.SetActive(true);
             RefreshScrollableContent();
+            if (!wasOpen)
+            {
+                UiSfx.PlayPopup();
+            }
 
             int length = data != null && data.userText != null ? data.userText.Length : 0;
             Debug.Log("[MemoryCardDetail] Open content length=" + length);
@@ -108,9 +142,15 @@ namespace EchoSpace.LineOfLife
 
         public void Close()
         {
+            bool wasOpen = panelRoot != null && panelRoot.activeSelf;
             if (panelRoot != null)
             {
                 panelRoot.SetActive(false);
+            }
+
+            if (wasOpen)
+            {
+                UiSfx.PlayExit();
             }
 
             Debug.Log("[MemoryCardDetail] Close");

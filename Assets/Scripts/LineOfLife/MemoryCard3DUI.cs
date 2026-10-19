@@ -1,7 +1,9 @@
 using EchoSpace.Core;
+using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.UI;
 
@@ -210,6 +212,14 @@ namespace EchoSpace.LineOfLife
                 || _timelineView == null
                 || !_timelineView.IsPairSelectionEnabled;
             button.gameObject.SetActive(!hide);
+
+            Button uiButton = button.GetComponent<Button>();
+            if (uiButton == null)
+            {
+                uiButton = button.GetComponentInChildren<Button>(true);
+            }
+
+            UiSfx.BindClick(uiButton);
         }
 
         private void OnEnable()
@@ -233,18 +243,21 @@ namespace EchoSpace.LineOfLife
         public void OnPointerClick(PointerEventData eventData)
         {
             Debug.Log("[MemoryCard3DUI] OnPointerClick");
+            UiSfx.PlayClick();
             OpenDetailPanel();
         }
 
         private void OnSelectEntered(SelectEnterEventArgs args)
         {
             Debug.Log("[MemoryCard3DUI] OnSelectEntered (XR)");
+            UiSfx.PlayClick();
             OpenDetailPanel();
         }
 
         private void OnMouseUpAsButton()
         {
             Debug.Log("[MemoryCard3DUI] OnMouseUpAsButton");
+            UiSfx.PlayClick();
             OpenDetailPanel();
         }
 
@@ -263,7 +276,7 @@ namespace EchoSpace.LineOfLife
                 return;
             }
 
-            _detailPanel.Open(_data);
+            _detailPanel.Open(_data, _generated);
         }
 
         private void EnsureClickable()
