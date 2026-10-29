@@ -1,0 +1,19 @@
+# Local-only artefacts for the Memory Review Web (also covered by the repo root .gitignore).
+# Participant data must never live in this folder; it is read from the external dataRoot.
+node_modules/
+dist/
+.vite/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.log
+data/
+research/
+screenshots/
+revisions/
+session.json
+session_r[0-9]*.json

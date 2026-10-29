@@ -72,6 +72,10 @@ namespace EchoSpace.LineOfLife
             string fullContent = data != null && !string.IsNullOrEmpty(data.userText)
                 ? data.userText
                 : "（尚未輸入文字）";
+            if (generated != null && !string.IsNullOrEmpty(generated.transitionText))
+            {
+                fullContent = generated.transitionText;
+            }
 
             if (generated != null)
             {
@@ -117,7 +121,12 @@ namespace EchoSpace.LineOfLife
 
             if (contentText != null)
             {
+                EnsureContentTextReadable();
+                contentText.enabled = true;
+                contentText.alpha = 1f;
+                contentText.gameObject.SetActive(true);
                 contentText.text = fullContent;
+                contentText.ForceMeshUpdate();
             }
 
             EnsureUiRaycastSetup();
@@ -271,7 +280,7 @@ namespace EchoSpace.LineOfLife
             for (int i = 0; i < graphics.Length; i++)
             {
                 Graphic graphic = graphics[i];
-                if (graphic == null || graphic is TMP_Text)
+                if (graphic == null || graphic is TMP_Text || IsMaskGraphic(graphic))
                 {
                     continue;
                 }
@@ -292,19 +301,53 @@ namespace EchoSpace.LineOfLife
                     continue;
                 }
 
-                Material fontMaterial = text.fontMaterial;
-                if (fontMaterial == null)
-                {
-                    continue;
-                }
-
-                if (overlayShader != null && fontMaterial.shader != overlayShader)
-                {
-                    fontMaterial.shader = overlayShader;
-                }
-
-                fontMaterial.renderQueue = DetailRenderQueue;
+                ApplyDetailTextMaterial(text, overlayShader, IsUnderScrollOrMask(text));
             }
+        }
+
+        private static bool IsMaskGraphic(Graphic graphic)
+        {
+            return graphic != null
+                && (graphic.GetComponent<Mask>() != null
+                    || graphic.GetComponent<RectMask2D>() != null);
+        }
+
+        private static bool IsUnderScrollOrMask(Component component)
+        {
+            return component != null
+                && (component.GetComponentInParent<ScrollRect>() != null
+                    || component.GetComponentInParent<Mask>() != null
+                    || component.GetComponentInParent<RectMask2D>() != null);
+        }
+
+        private void ApplyDetailTextMaterial(TMP_Text text, Shader overlayShader, bool insideScroll)
+        {
+            Material fontMaterial = text.fontMaterial;
+            if (fontMaterial == null)
+            {
+                return;
+            }
+
+            if (insideScroll)
+            {
+                text.maskable = false;
+                if (fontMaterial.HasProperty("_ZTestMode"))
+                {
+                    fontMaterial.SetFloat("_ZTestMode", 8f);
+                }
+
+                if (fontMaterial.HasProperty("_CullMode"))
+                {
+                    fontMaterial.SetFloat("_CullMode", 0f);
+                }
+            }
+            else if (overlayShader != null && fontMaterial.shader != overlayShader)
+            {
+                fontMaterial.shader = overlayShader;
+            }
+
+            fontMaterial.renderQueue = DetailRenderQueue;
+            text.ForceMeshUpdate();
         }
 
         private Material ResolveUiNoZTestMaterial()
@@ -439,6 +482,26 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void EnsureContentTextReadable()
+        {
+            if (contentText == null)
+            {
+                return;
+            }
+
+            TMP_Text fontSource = titleText != null && titleText.font != null
+                ? titleText
+                : typeText;
+            if (fontSource != null && fontSource.font != null && contentText.font != fontSource.font)
+            {
+                contentText.font = fontSource.font;
+                if (fontSource.fontSharedMaterial != null)
+                {
+                    contentText.fontSharedMaterial = fontSource.fontSharedMaterial;
+                }
+            }
+        }
+
         /// <summary>
         /// Grow ContentText + ScrollRect Content to preferred text height so long
         /// notes can scroll instead of being clipped by the Viewport mask.
@@ -455,6 +518,10 @@ namespace EchoSpace.LineOfLife
             const float verticalPadding = 8f;
             const float minHeight = 50f;
 
+            StretchDetailViewport();
+            DisableContentMask();
+
+            contentText.maskable = false;
             contentText.enableWordWrapping = true;
             contentText.overflowMode = TextOverflowModes.Overflow;
             contentText.alignment = TextAlignmentOptions.TopLeft;
@@ -493,7 +560,64 @@ namespace EchoSpace.LineOfLife
             }
 
             Canvas.ForceUpdateCanvases();
+            contentText.ForceMeshUpdate();
             ResetScrollToTop();
+        }
+
+        private void StretchDetailViewport()
+        {
+            if (contentScrollRect == null)
+            {
+                return;
+            }
+
+            RectTransform viewport = contentScrollRect.viewport;
+            if (viewport == null && contentScrollRect.transform.childCount > 0)
+            {
+                Transform named = contentScrollRect.transform.Find("Viewport");
+                viewport = named != null
+                    ? named as RectTransform
+                    : contentScrollRect.transform.GetChild(0) as RectTransform;
+                contentScrollRect.viewport = viewport;
+            }
+
+            if (viewport == null)
+            {
+                return;
+            }
+
+            viewport.anchorMin = Vector2.zero;
+            viewport.anchorMax = Vector2.one;
+            viewport.pivot = new Vector2(0.5f, 1f);
+            viewport.offsetMin = Vector2.zero;
+            viewport.offsetMax = Vector2.zero;
+            viewport.gameObject.SetActive(true);
+        }
+
+        private void DisableContentMask()
+        {
+            if (contentScrollRect == null)
+            {
+                return;
+            }
+
+            Mask[] masks = contentScrollRect.GetComponentsInChildren<Mask>(true);
+            for (int i = 0; i < masks.Length; i++)
+            {
+                if (masks[i] != null)
+                {
+                    masks[i].enabled = false;
+                }
+            }
+
+            RectMask2D[] rectMasks = contentScrollRect.GetComponentsInChildren<RectMask2D>(true);
+            for (int i = 0; i < rectMasks.Length; i++)
+            {
+                if (rectMasks[i] != null)
+                {
+                    rectMasks[i].enabled = false;
+                }
+            }
         }
 
         private void ResetScrollToTop()

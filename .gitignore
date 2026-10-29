@@ -38,3 +38,41 @@ sysinfo.txt
 *.ply
 *.env
 # 3DGS splat binary data is tracked via Git LFS (see .gitattributes)
+
+# ---------------------------------------------------------------------------
+# EchoSpace participant / research data - MUST NEVER be committed.
+# Real data lives OUTSIDE this repo ({dataRoot}/research/{sessionId}/...). These rules are a
+# safety net in case a session folder, export or keepsake is ever copied into the working tree.
+# ---------------------------------------------------------------------------
+research/
+keepsake/
+keepsakes/
+EchoSpaceData/
+EchoSpace Data/
+echospace_demo/
+session.json
+session_r[0-9]*.json
+revisions/
+screenshots/
+_test_*.png
+*.keepsake.*
+deletion_requests/
+
+# Secrets / local config
+.env
+.env.*
+!.env.example
+
+# Python (tools/stt_proxy, MemoryReviewWeb/backend)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# MemoryReviewWeb (Node / Vite build output)
+MemoryReviewWeb/frontend/node_modules/
+MemoryReviewWeb/frontend/dist/
+MemoryReviewWeb/frontend/.vite/
+MemoryReviewWeb/**/*.log
+MemoryReviewWeb/**/data/
+MemoryReviewWeb/**/.pytest_cache/

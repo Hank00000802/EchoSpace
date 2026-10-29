@@ -239,8 +239,11 @@ namespace EchoSpace.Annotation
                         previewMarker.SetActive(false);
                     }
 
-                    // Exploration mode: no marker distance update, no anchor placement.
-                    // Right joystick input is left to XR Turn Provider.
+                    // Exploration: no new markers. Trigger on an existing triangle opens its detail.
+                    if (placeWithControllerTrigger && GetXRPlaceInputDown())
+                    {
+                        TryInspectPointedMemoryAnchor();
+                    }
                 }
 
                 return;
@@ -545,7 +548,11 @@ namespace EchoSpace.Annotation
 
                 if (Input.GetKeyDown(debugPlaceKey))
                 {
-                    if (!ShouldBlockXRAnchorPlacement())
+                    if (TryInspectPointedMemoryAnchor())
+                    {
+                        Debug.Log("[AirAnchorPlacementTester] Debug inspect existing MemoryAnchor.");
+                    }
+                    else if (!ShouldBlockXRAnchorPlacement())
                     {
                         PlaceAnchorAtPreviewMarker();
                     }
@@ -556,7 +563,11 @@ namespace EchoSpace.Annotation
 
             if (placeWithControllerTrigger && GetXRPlaceInputDown())
             {
-                if (!ShouldBlockXRAnchorPlacement())
+                if (TryInspectPointedMemoryAnchor())
+                {
+                    Debug.Log("[AirAnchorPlacementTester] Right trigger inspect existing MemoryAnchor.");
+                }
+                else if (!ShouldBlockXRAnchorPlacement())
                 {
                     Debug.Log("[AirAnchorPlacementTester] Right trigger place anchor.");
                     PlaceAnchorAtPreviewMarker();
@@ -578,7 +589,76 @@ namespace EchoSpace.Annotation
                 return true;
             }
 
+            if (TryGetPointedMemoryAnchor(out _))
+            {
+                Debug.Log("[AirAnchorPlacementTester] Ray on existing MemoryAnchor, block new placement.");
+                return true;
+            }
+
             return false;
+        }
+
+        private bool TryInspectPointedMemoryAnchor()
+        {
+            if (!TryGetPointedMemoryAnchor(out MemoryAnchor existing) || existing == null)
+            {
+                return false;
+            }
+
+            existing.OpenStoredMemoryDetail();
+            return true;
+        }
+
+        private bool TryGetPointedMemoryAnchor(out MemoryAnchor anchor)
+        {
+            anchor = null;
+
+            Transform origin = controllerRayOrigin;
+            if (origin == null && xrRayInteractor != null)
+            {
+                origin = xrRayInteractor.transform;
+            }
+
+            if (origin == null)
+            {
+                return false;
+            }
+
+            Ray ray = new Ray(origin.position, origin.forward);
+            MemoryAnchor[] all = FindObjectsOfType<MemoryAnchor>();
+            float bestAlong = float.MaxValue;
+            float maxDist = maxMarkerDistance + 1f;
+            const float worldClickRadius = 0.16f;
+
+            for (int i = 0; i < all.Length; i++)
+            {
+                MemoryAnchor candidate = all[i];
+                if (candidate == null || !candidate.isActiveAndEnabled)
+                {
+                    continue;
+                }
+
+                Vector3 toAnchor = candidate.transform.position - ray.origin;
+                float along = Vector3.Dot(toAnchor, ray.direction);
+                if (along < 0.15f || along > maxDist)
+                {
+                    continue;
+                }
+
+                float lateral = Vector3.Cross(ray.direction, toAnchor).magnitude;
+                if (lateral > worldClickRadius)
+                {
+                    continue;
+                }
+
+                if (along < bestAlong)
+                {
+                    bestAlong = along;
+                    anchor = candidate;
+                }
+            }
+
+            return anchor != null;
         }
 
         private bool IsXRPointerOverBlockingUI()

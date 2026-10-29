@@ -12,6 +12,12 @@ namespace EchoSpace.Annotation
 
         private readonly List<MemoryAnchorData> anchors = new List<MemoryAnchorData>();
 
+        /// <summary>Raised right after a new anchor is created and registered (before the annotation panel opens).</summary>
+        public event System.Action<MemoryAnchor> AnchorCreated;
+
+        /// <summary>Raised when an anchor is removed (e.g. annotation cancelled).</summary>
+        public event System.Action<MemoryAnchorData> AnchorRemoved;
+
         private void Update()
         {
             if (enableDebugHotkey && Input.GetKeyDown(debugKey))
@@ -49,6 +55,18 @@ namespace EchoSpace.Annotation
             }
 
             anchors.Add(data);
+            if (anchor != null && AnchorCreated != null)
+            {
+                try
+                {
+                    AnchorCreated(anchor);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogException(ex);
+                }
+            }
+
             return anchor;
         }
 
@@ -97,6 +115,17 @@ namespace EchoSpace.Annotation
             if (data != null)
             {
                 anchors.Remove(data);
+                if (AnchorRemoved != null)
+                {
+                    try
+                    {
+                        AnchorRemoved(data);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogException(ex);
+                    }
+                }
             }
 
             string id = data != null ? data.id : "(no id)";

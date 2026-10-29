@@ -1,0 +1,16 @@
+{
+  "name": "echospace-memory-review-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 4173"
+  },
+  "devDependencies": {
+    "typescript": "~5.5.4",
+    "vite": "^5.4.0"
+  }
+}

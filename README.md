@@ -285,3 +285,10 @@ uvicorn server:app --host 127.0.0.1 --port 8000
 
 #http://127.0.0.1:8000/transcribe 是可以看轉譯的結果
 ```
+
+## 回饋網頁
+```powershell
+cd MemoryReviewWeb\backend
+python -m venv .venv ; .\.venv\Scripts\activate ; pip install -r requirements.txt   # 只需一次
+python run.py --data-root "C:\Users\user\Desktop\TXTsai_EchoSpace\Thesis\system\RecordData" --session S-20261025-090000-aaaaaa
+```

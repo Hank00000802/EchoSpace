@@ -233,7 +233,7 @@ namespace EchoSpace.Reflection
                 subtitleRoot.SetActive(true);
                 PreparePhotobookButtonCanvas(subtitleRoot);
                 BringAfterSwitchViewToFront();
-                RefreshOpenPromptButtonVisibility();
+                HidePromptAndShowOpenButton();
             }
 
             HideAfterSwitchPanels();
@@ -809,6 +809,13 @@ namespace EchoSpace.Reflection
             }
 
             subtitleRoot.SetActive(true);
+            HidePromptAndShowOpenButton();
+        }
+
+        private void HidePromptAndShowOpenButton()
+        {
+            BindAfterSwitchPromptToggleButtons();
+            SetAfterSwitchPromptVisible(false);
         }
 
         private void CacheSubtitlePrompt()

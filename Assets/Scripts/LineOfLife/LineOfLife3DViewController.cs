@@ -221,7 +221,9 @@ namespace EchoSpace.LineOfLife
         private readonly List<GraphicPracticeMaterialState> _practiceGraphicStates = new List<GraphicPracticeMaterialState>();
         private readonly List<TmpPracticeMaterialState> _practiceTmpStates = new List<TmpPracticeMaterialState>();
         private const int PracticeTimelineCanvasSortingOrder = 1250;
+        private const int PracticeNodeCanvasSortingOrder = 2800;
         private const int PracticeTimelineRenderQueue = 4000;
+        private const int PracticeNodeRenderQueue = 4003;
 
         private struct CanvasPracticeSortState
         {
@@ -234,7 +236,6 @@ namespace EchoSpace.LineOfLife
         {
             public Renderer renderer;
             public int sortingOrder;
-            public int[] renderQueues;
         }
 
         private struct GraphicPracticeMaterialState
@@ -248,6 +249,8 @@ namespace EchoSpace.LineOfLife
             public TMP_Text text;
             public Shader shader;
             public int renderQueue;
+            public float zTestMode;
+            public bool hasZTestMode;
         }
 
         private void Awake()
@@ -822,6 +825,27 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void RefreshGenerateTransitionButtonVisibility()
+        {
+            SetGenerateTransitionButtonVisible(!string.IsNullOrWhiteSpace(pendingVoiceText));
+        }
+
+        private void SetGenerateTransitionButtonVisible(bool visible)
+        {
+            if (IsOpeningPracticeActive())
+            {
+                visible = false;
+            }
+
+            ResolveGeneratedTransitionButton();
+            if (generateTransitionCardButton == null)
+            {
+                return;
+            }
+
+            generateTransitionCardButton.gameObject.SetActive(visible);
+        }
+
         private void BindTransitionVoiceInput()
         {
             VoiceInputController voice = null;
@@ -1061,6 +1085,13 @@ namespace EchoSpace.LineOfLife
 
         private bool HasSelectedLinkSource =>
             selectedPastCard != null || selectedPresentCard != null;
+
+        /// <summary>
+        /// Read-only view of generated connection cards (creation order). Used by EchoSpace.Export only.
+        /// Returns a read-only wrapper; callers cannot add or remove cards.
+        /// </summary>
+        public IReadOnlyList<GeneratedTransitionCardData> GeneratedTransitionCards =>
+            _generatedTransitionCards.AsReadOnly();
 
         public void ShowSwitchViewPromptFromFinalReflection()
         {
@@ -1307,6 +1338,7 @@ namespace EchoSpace.LineOfLife
             }
 
             ApplyPracticeTimelineDrawOrder();
+            EnsurePracticeCloseButtonVisible();
             Debug.Log("[LineOfLife3DView] Opened 3D timeline summary.");
         }
 
@@ -2000,6 +2032,10 @@ namespace EchoSpace.LineOfLife
 
             RegisterGeneratedTransitionUi();
             EnsureGeneratedTransitionUiRaycast();
+            if (clearPendingInput)
+            {
+                SetGenerateTransitionButtonVisible(false);
+            }
 
             if (transitionGenerationPromptRoot != null)
             {
@@ -2032,6 +2068,7 @@ namespace EchoSpace.LineOfLife
             HidePairSelectionInstruction();
             SetPairSelectButtonsEnabled(false);
             SetFinalReflectionSwitchButtonVisible(false);
+            RefreshGenerateTransitionButtonVisibility();
             Debug.Log("[GeneratedTransitionFlow] Show transition generation prompt");
         }
 
@@ -2077,6 +2114,7 @@ namespace EchoSpace.LineOfLife
 
             hasViewedTransitionPrompt = true;
             pendingVoiceText = string.Empty;
+            SetGenerateTransitionButtonVisible(false);
             ClearCurrentPairSelection();
             UpdateProgressiveButtons();
             ShowLinkCardGeneratedInstruction();
@@ -2107,6 +2145,7 @@ namespace EchoSpace.LineOfLife
                 pendingVoiceText = pendingVoiceText + " " + incoming;
             }
 
+            RefreshGenerateTransitionButtonVisibility();
             Debug.Log("[GeneratedTransitionFlow] Voice transcript stored for transition card, pendingLength=" + pendingVoiceText.Length + " text=\"" + incoming + "\"");
         }
 
@@ -2129,8 +2168,9 @@ namespace EchoSpace.LineOfLife
 
             if (string.IsNullOrEmpty(transcript))
             {
-                transcript = "（尚未輸入文字）";
-                Debug.Log("[GeneratedTransitionFlow] No transcript recognized; generating with default empty-card text.");
+                Debug.Log("[GeneratedTransitionFlow] Generate ignored until recording is complete.");
+                SetGenerateTransitionButtonVisible(false);
+                return;
             }
 
             GenerateTransitionCardFromSelectedPair(transcript);
@@ -2145,6 +2185,7 @@ namespace EchoSpace.LineOfLife
             generatedTransitionCard = null;
             _generatedTransitionCards.Clear();
             pendingVoiceText = string.Empty;
+            SetGenerateTransitionButtonVisible(false);
             _pairSelectButtonsEnabled = false;
             _awaitingContinueAfterLinkCard = false;
             ResetPairInstructionPose();
@@ -2830,14 +2871,18 @@ namespace EchoSpace.LineOfLife
             if (pairSelectionInstructionText != null)
             {
                 pairSelectionInstructionText.gameObject.SetActive(true);
+                pairSelectionInstructionText.enabled = true;
+                pairSelectionInstructionText.alpha = 1f;
                 pairSelectionInstructionText.text = string.IsNullOrEmpty(pairInstructionPracticeText)
                     ? "這是練習模式。\n此為 3D 時間線，會是生成轉變卡及整理後的時間結構。\n看完後請按右上角「X」繼續。"
                     : pairInstructionPracticeText;
+                pairSelectionInstructionText.ForceMeshUpdate();
             }
 
             _pairInstructionVisible = true;
             HidePairInstructionChrome();
             PlacePairInstructionIfNeeded();
+            EnsurePracticeCloseButtonVisible();
             return true;
         }
 
@@ -2870,9 +2915,10 @@ namespace EchoSpace.LineOfLife
                 });
 
                 canvas.overrideSorting = true;
-                if (canvas.sortingOrder < PracticeTimelineCanvasSortingOrder)
+                int order = GetPracticeCanvasSortingOrder(canvas);
+                if (canvas.sortingOrder < order)
                 {
-                    canvas.sortingOrder = PracticeTimelineCanvasSortingOrder;
+                    canvas.sortingOrder = order;
                 }
             }
 
@@ -2906,25 +2952,7 @@ namespace EchoSpace.LineOfLife
                     continue;
                 }
 
-                Material fontMaterial = text.fontMaterial;
-                _practiceTmpStates.Add(new TmpPracticeMaterialState
-                {
-                    text = text,
-                    shader = fontMaterial != null ? fontMaterial.shader : null,
-                    renderQueue = fontMaterial != null ? fontMaterial.renderQueue : 0
-                });
-
-                if (fontMaterial == null)
-                {
-                    continue;
-                }
-
-                if (overlayShader != null && fontMaterial.shader != overlayShader)
-                {
-                    fontMaterial.shader = overlayShader;
-                }
-
-                fontMaterial.renderQueue = PracticeTimelineRenderQueue;
+                ApplyPracticeTmpDrawOrder(text, overlayShader);
             }
 
             Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
@@ -2936,22 +2964,10 @@ namespace EchoSpace.LineOfLife
                     continue;
                 }
 
-                Material[] materials = renderer.materials;
-                int[] queues = new int[materials.Length];
-                for (int m = 0; m < materials.Length; m++)
-                {
-                    queues[m] = materials[m] != null ? materials[m].renderQueue : 0;
-                    if (materials[m] != null && materials[m].renderQueue < PracticeTimelineRenderQueue)
-                    {
-                        materials[m].renderQueue = PracticeTimelineRenderQueue;
-                    }
-                }
-
                 _practiceRendererStates.Add(new RendererPracticeSortState
                 {
                     renderer = renderer,
-                    sortingOrder = renderer.sortingOrder,
-                    renderQueues = queues
+                    sortingOrder = renderer.sortingOrder
                 });
 
                 if (renderer.sortingOrder < PracticeTimelineCanvasSortingOrder)
@@ -2962,6 +2978,161 @@ namespace EchoSpace.LineOfLife
 
             _practiceDrawOrderApplied = true;
             Debug.Log("[LineOfLife3DView] Practice draw order applied in front of ControllerTutorial and black sphere.");
+        }
+
+        private void ApplyPracticeTmpDrawOrder(TMP_Text text, Shader overlayShader)
+        {
+            Material fontMaterial = text.fontMaterial;
+            bool hasZTestMode = fontMaterial != null && fontMaterial.HasProperty("_ZTestMode");
+            _practiceTmpStates.Add(new TmpPracticeMaterialState
+            {
+                text = text,
+                shader = fontMaterial != null ? fontMaterial.shader : null,
+                renderQueue = fontMaterial != null ? fontMaterial.renderQueue : 0,
+                zTestMode = hasZTestMode ? fontMaterial.GetFloat("_ZTestMode") : 0f,
+                hasZTestMode = hasZTestMode
+            });
+
+            text.enabled = true;
+            text.alpha = 1f;
+
+            if (fontMaterial == null)
+            {
+                return;
+            }
+
+            if (hasZTestMode)
+            {
+                fontMaterial.SetFloat("_ZTestMode", 8f);
+            }
+
+            if (fontMaterial.HasProperty("_CullMode"))
+            {
+                fontMaterial.SetFloat("_CullMode", 0f);
+            }
+
+            fontMaterial.renderQueue = IsPracticeNodeUiText(text)
+                ? PracticeNodeRenderQueue
+                : PracticeTimelineRenderQueue;
+            text.ForceMeshUpdate();
+        }
+
+        private int GetPracticeCanvasSortingOrder(Canvas canvas)
+        {
+            return IsNodeUiCanvas(canvas)
+                ? PracticeNodeCanvasSortingOrder
+                : PracticeTimelineCanvasSortingOrder;
+        }
+
+        private bool IsNodeUiCanvas(Canvas canvas)
+        {
+            if (canvas == null)
+            {
+                return false;
+            }
+
+            if (canvas.name.IndexOf("NodeButtonCanvas", System.StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                return true;
+            }
+
+            if (closeTimelineButton != null
+                && closeTimelineButton.transform.IsChildOf(canvas.transform))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool IsPracticeNodeUiText(TMP_Text text)
+        {
+            if (text == null)
+            {
+                return false;
+            }
+
+            if (closeTimelineButton != null
+                && text.transform.IsChildOf(closeTimelineButton.transform))
+            {
+                return true;
+            }
+
+            Canvas canvas = text.GetComponentInParent<Canvas>();
+            return IsNodeUiCanvas(canvas);
+        }
+
+        private void EnsurePracticeCloseButtonVisible()
+        {
+            if (!IsOpeningPracticeActive())
+            {
+                return;
+            }
+
+            ResolveCloseTimelineButton();
+            if (closeTimelineButton == null)
+            {
+                return;
+            }
+
+            if (closeTimelineButton.transform.parent != null)
+            {
+                closeTimelineButton.transform.parent.gameObject.SetActive(true);
+            }
+
+            closeTimelineButton.gameObject.SetActive(true);
+            closeTimelineButton.enabled = true;
+            closeTimelineButton.interactable = true;
+            EnsureButtonRaycastable(closeTimelineButton);
+
+            Canvas canvas = closeTimelineButton.GetComponentInParent<Canvas>();
+            if (canvas != null)
+            {
+                canvas.gameObject.SetActive(true);
+                canvas.overrideSorting = true;
+                if (canvas.sortingOrder < PracticeNodeCanvasSortingOrder)
+                {
+                    canvas.sortingOrder = PracticeNodeCanvasSortingOrder;
+                }
+            }
+
+            TMP_Text label = closeTimelineButton.GetComponentInChildren<TMP_Text>(true);
+            if (label != null)
+            {
+                label.gameObject.SetActive(true);
+                label.enabled = true;
+                label.alpha = 1f;
+                Color color = label.color;
+                color.a = 1f;
+                label.color = color;
+                if (!IsPracticeTmpTracked(label))
+                {
+                    Shader overlayShader = Shader.Find("TextMeshPro/Distance Field Overlay");
+                    ApplyPracticeTmpDrawOrder(label, overlayShader);
+                }
+                else
+                {
+                    Material fontMaterial = label.fontMaterial;
+                    if (fontMaterial != null)
+                    {
+                        if (fontMaterial.HasProperty("_ZTestMode"))
+                        {
+                            fontMaterial.SetFloat("_ZTestMode", 8f);
+                        }
+
+                        if (fontMaterial.HasProperty("_CullMode"))
+                        {
+                            fontMaterial.SetFloat("_CullMode", 0f);
+                        }
+
+                        fontMaterial.renderQueue = PracticeNodeRenderQueue;
+                    }
+
+                    label.ForceMeshUpdate();
+                }
+            }
+
+            Debug.Log("[LineOfLife3DView] Practice CloseButton forced visible on " + closeTimelineButton.name);
         }
 
         private bool IsPracticeCanvasTracked(Canvas canvas)
@@ -3070,6 +3241,12 @@ namespace EchoSpace.LineOfLife
                 }
 
                 fontMaterial.renderQueue = state.renderQueue;
+                if (state.hasZTestMode && fontMaterial.HasProperty("_ZTestMode"))
+                {
+                    fontMaterial.SetFloat("_ZTestMode", state.zTestMode);
+                }
+
+                state.text.ForceMeshUpdate();
             }
 
             for (int i = 0; i < _practiceRendererStates.Count; i++)
@@ -3081,20 +3258,6 @@ namespace EchoSpace.LineOfLife
                 }
 
                 state.renderer.sortingOrder = state.sortingOrder;
-                Material[] materials = state.renderer.materials;
-                if (state.renderQueues == null)
-                {
-                    continue;
-                }
-
-                int count = Mathf.Min(materials.Length, state.renderQueues.Length);
-                for (int m = 0; m < count; m++)
-                {
-                    if (materials[m] != null)
-                    {
-                        materials[m].renderQueue = state.renderQueues[m];
-                    }
-                }
             }
 
             _practiceCanvasStates.Clear();
@@ -3300,12 +3463,25 @@ namespace EchoSpace.LineOfLife
                     continue;
                 }
 
-                if (overlayShader != null && fontMaterial.shader != overlayShader)
+                if (text is TextMeshPro)
+                {
+                    if (fontMaterial.HasProperty("_ZTestMode"))
+                    {
+                        fontMaterial.SetFloat("_ZTestMode", 8f);
+                    }
+
+                    if (fontMaterial.HasProperty("_CullMode"))
+                    {
+                        fontMaterial.SetFloat("_CullMode", 0f);
+                    }
+                }
+                else if (overlayShader != null && fontMaterial.shader != overlayShader)
                 {
                     fontMaterial.shader = overlayShader;
                 }
 
                 fontMaterial.renderQueue = PairInstructionRenderQueue;
+                text.ForceMeshUpdate();
             }
 
             Material uiMaterial = ResolvePairInstructionUiNoZTestMaterial();

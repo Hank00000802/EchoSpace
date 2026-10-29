@@ -183,11 +183,19 @@ public class AnnotationPanelController : MonoBehaviour
 
     private void ApplyTutorialPracticeChrome()
     {
-        bool hideSave = EchoSpace.UI.ControllerTutorialGate.IsTutorialActive;
-        if (saveButton != null)
+        RefreshSaveButtonVisibility();
+    }
+
+    private void RefreshSaveButtonVisibility()
+    {
+        if (saveButton == null)
         {
-            saveButton.gameObject.SetActive(!hideSave);
+            return;
         }
+
+        bool tutorial = EchoSpace.UI.ControllerTutorialGate.IsTutorialActive;
+        bool hasRecording = !string.IsNullOrWhiteSpace(pendingVoiceText);
+        saveButton.gameObject.SetActive(!tutorial && hasRecording);
     }
 
     private void RegisterMemoryTypeButton(Button button, MemoryType type, System.Action onSelect)
@@ -371,8 +379,32 @@ public class AnnotationPanelController : MonoBehaviour
             UiSfx.PlayExit();
         }
 
+        RaiseAnnotationSaved(data);
         ShowCurrentModeGuideAfterClose();
         Debug.Log("[AnnotationPanelController] Save complete, panel closed.");
+    }
+
+    /// <summary>
+    /// Raised after a successful Save, once the panel is closed. Notification only; subscriber
+    /// failures are caught so they can never interrupt the annotation flow.
+    /// </summary>
+    public event System.Action<MemoryAnchorData> AnnotationSaved;
+
+    private void RaiseAnnotationSaved(MemoryAnchorData data)
+    {
+        if (AnnotationSaved == null)
+        {
+            return;
+        }
+
+        try
+        {
+            AnnotationSaved(data);
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogException(ex);
+        }
     }
 
     private void ShowCurrentModeGuideAfterClose()
@@ -487,6 +519,7 @@ public class AnnotationPanelController : MonoBehaviour
         }
 
         ResetVoiceInputToIdle();
+        RefreshSaveButtonVisibility();
     }
 
     private void ResetVoiceInputToIdle()
@@ -951,12 +984,14 @@ public class AnnotationPanelController : MonoBehaviour
     public void NotifyTranscriptApplied()
     {
         RefreshCategoryButtonVisuals();
+        RefreshSaveButtonVisibility();
     }
 
     public void NotifyTranscriptApplied(string transcript)
     {
         AppendPendingVoiceText(transcript);
         RefreshCategoryButtonVisuals();
+        RefreshSaveButtonVisibility();
         Debug.Log("[AnnotationPanel] Recording complete. Waiting for Save.");
     }
 

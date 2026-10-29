@@ -24,6 +24,12 @@ namespace EchoSpace.UI
 
         [Header("Playback")]
         [SerializeField] private AudioSource audioSource;
+        [Range(0f, 1f)]
+        [SerializeField] private float clickVolume = 1f;
+        [Range(0f, 1f)]
+        [SerializeField] private float exitVolume = 0.5f;
+        [Range(0f, 1f)]
+        [SerializeField] private float popupVolume = 0.5f;
 
         private const string ClickPath = "Assets/Audio/ButtonUI/ButtonClick.mp3";
         private const string ExitPath = "Assets/Audio/ButtonUI/UI_Exit.mp3";
@@ -58,17 +64,17 @@ namespace EchoSpace.UI
 
         public static void PlayClick()
         {
-            Play(sfx => sfx.buttonClick);
+            Play(sfx => sfx.buttonClick, sfx => sfx.clickVolume);
         }
 
         public static void PlayExit()
         {
-            Play(sfx => sfx.uiExit);
+            Play(sfx => sfx.uiExit, sfx => sfx.exitVolume);
         }
 
         public static void PlayPopup()
         {
-            Play(sfx => sfx.uiPopup);
+            Play(sfx => sfx.uiPopup, sfx => sfx.popupVolume);
         }
 
         public static void BindClick(Button button)
@@ -82,7 +88,7 @@ namespace EchoSpace.UI
             button.onClick.AddListener(PlayClick);
         }
 
-        private static void Play(System.Func<UiSfx, AudioClip> selector)
+        private static void Play(System.Func<UiSfx, AudioClip> selector, System.Func<UiSfx, float> volumeSelector)
         {
             if (s_isQuitting || !Application.isPlaying)
             {
@@ -107,7 +113,8 @@ namespace EchoSpace.UI
                 return;
             }
 
-            sfx.audioSource.PlayOneShot(clip);
+            float volume = volumeSelector != null ? Mathf.Clamp01(volumeSelector(sfx)) : 1f;
+            sfx.audioSource.PlayOneShot(clip, volume);
         }
 
         private static UiSfx Resolve()

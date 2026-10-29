@@ -27,8 +27,14 @@ namespace EchoSpace.LineOfLife
         public ReflectionSummaryController reflectionSummaryController;
         public LineOfLife3DViewController lineOfLife3DViewController;
         public bool hideLineOfLifeOnComplete = true;
-        [Tooltip("Shown only during the opening practice phase.")]
+        [Tooltip("Classification panel guide. Practice copy during opening tutorial; official copy after.")]
         public TMP_Text practiceText;
+        [TextArea(3, 6)]
+        public string practicePreviewText =
+            "這是練習預覽模式。\n此為時間分類面板，標記的記憶會在此做分類，看完後請按右上角「X」繼續。";
+        [TextArea(3, 6)]
+        public string classificationGuideText =
+            "依照自己的感受整理記憶卡片即可，若想繼續標記記憶，可以點擊右上角的「X」。整理完成後，按下「完成」，即可進入下一階段。";
         [Header("Generated Transition Flow")]
         [Tooltip("If true, 2D classification is Past / Present / Uncertain. Transition is generated later in 3D.")]
         public bool useGeneratedTransitionFlow = true;
@@ -57,7 +63,7 @@ namespace EchoSpace.LineOfLife
         public XRBoolButtonUsage rightLineOfLifeToggleButton = XRBoolButtonUsage.PrimaryButton;
 
         private bool _rightLineOfLifeToggleWasPressed;
-        private bool _practiceTextWasActive;
+        private int _practiceTextMode = -1;
 
         public bool IsOpen =>
             lineOfLifePanel != null && lineOfLifePanel.activeSelf;
@@ -339,19 +345,85 @@ namespace EchoSpace.LineOfLife
         private void ApplyPracticeTextVisibility(bool force)
         {
             ResolvePracticeText();
-            bool practice = ControllerTutorialGate.IsTutorialActive;
-            if (!force && practice == _practiceTextWasActive)
-            {
-                return;
-            }
-
-            _practiceTextWasActive = practice;
             if (practiceText == null)
             {
                 return;
             }
 
-            practiceText.gameObject.SetActive(practice);
+            int mode;
+            if (ControllerTutorialGate.IsTutorialActive)
+            {
+                mode = 1;
+            }
+            else if (VRIntroGuideController.IsIntroActive)
+            {
+                mode = 0;
+            }
+            else
+            {
+                mode = 2;
+            }
+
+            if (!force && mode == _practiceTextMode)
+            {
+                return;
+            }
+
+            _practiceTextMode = mode;
+            if (mode == 0)
+            {
+                practiceText.gameObject.SetActive(false);
+                return;
+            }
+
+            EnsurePracticeTextFont();
+            practiceText.gameObject.SetActive(true);
+            practiceText.text = mode == 1
+                ? (string.IsNullOrEmpty(practicePreviewText)
+                    ? "這是練習預覽模式。\n此為時間分類面板，標記的記憶會在此做分類，看完後請按右上角「X」繼續。"
+                    : practicePreviewText)
+                : (string.IsNullOrEmpty(classificationGuideText)
+                    ? "依照自己的感受整理記憶卡片即可，若想繼續標記記憶，可以點擊右上角的「X」。整理完成後，按下「完成」，即可進入下一階段。"
+                    : classificationGuideText);
+            practiceText.ForceMeshUpdate();
+        }
+
+        private void EnsurePracticeTextFont()
+        {
+            if (practiceText == null)
+            {
+                return;
+            }
+
+            TMP_Text source = finishButton != null
+                ? finishButton.GetComponentInChildren<TMP_Text>(true)
+                : null;
+            if ((source == null || source.font == null) && lineOfLifePanel != null)
+            {
+                TMP_Text[] texts = lineOfLifePanel.GetComponentsInChildren<TMP_Text>(true);
+                for (int i = 0; i < texts.Length; i++)
+                {
+                    if (texts[i] != null
+                        && texts[i] != practiceText
+                        && texts[i].font != null
+                        && texts[i].font != practiceText.font)
+                    {
+                        source = texts[i];
+                        break;
+                    }
+                }
+            }
+
+            if (source == null || source.font == null || practiceText.font == source.font)
+            {
+                return;
+            }
+
+            practiceText.font = source.font;
+            if (source.fontSharedMaterial != null)
+            {
+                practiceText.fontSharedMaterial = source.fontSharedMaterial;
+            }
         }
 
         private void ResolvePracticeText()

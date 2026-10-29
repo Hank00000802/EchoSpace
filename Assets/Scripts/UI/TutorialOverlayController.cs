@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using EchoSpace.Annotation;
+using EchoSpace.LineOfLife;
 using TMPro;
 using UnityEngine;
 using UnityEngine.XR;
@@ -53,6 +54,14 @@ namespace EchoSpace.UI
         [SerializeField] private string explorationModeLabel = "目前是探索模式";
         [SerializeField] private string tutorialModeLabel = "目前是教學模式";
 
+        [Header("Idle Next Stage Hint")]
+        [SerializeField] private bool enableIdleNextStageHint = true;
+        [SerializeField] private float idleNextStageHintSeconds = 30f;
+        [SerializeField] private float idleNextStageHintDuration = 8f;
+        [TextArea(3, 6)]
+        [SerializeField] private string idleNextStageHintText =
+            "準備好進入下一階段了嗎？你可以按下右手 A 按鈕，開始整理「轉變前」與「現在」的記憶，也可以繼續探索與標記。";
+
         private float _gripHoldTimer;
         private bool _gripToggleTriggered;
         private bool _leftXWasPressed;
@@ -67,6 +76,12 @@ namespace EchoSpace.UI
         private Coroutine _switchModeGuideHideRoutine;
         private Transform _switchModeGuideOriginalParent;
         private AirAnchorPlacementTester _placementTester;
+        private AnnotationPanelController _annotationPanel;
+        private LineOfLifeManager _lineOfLifeManager;
+        private LineOfLife3DViewController _lineOfLife3D;
+        private string _overrideSwitchModeGuideText;
+        private float _overrideSwitchModeGuideDuration;
+        private float _idleNoAnnotationSeconds;
         private readonly List<XRInputDevice> _devices = new List<XRInputDevice>();
 
         private void Awake()
@@ -119,6 +134,7 @@ namespace EchoSpace.UI
         {
             if (VRIntroGuideController.IsIntroActive)
             {
+                _idleNoAnnotationSeconds = 0f;
                 return;
             }
 
@@ -129,6 +145,7 @@ namespace EchoSpace.UI
 
             CheckVRGripToggle();
             CheckSwitchModeGuideInput();
+            UpdateIdleNextStageHint();
 
             if (IsTutorialModeActive)
             {
@@ -186,9 +203,78 @@ namespace EchoSpace.UI
             }
         }
 
+        private void UpdateIdleNextStageHint()
+        {
+            if (!CanTrackIdleNextStageHint())
+            {
+                _idleNoAnnotationSeconds = 0f;
+                return;
+            }
+
+            _idleNoAnnotationSeconds += Time.deltaTime;
+            float waitSeconds = idleNextStageHintSeconds > 0f ? idleNextStageHintSeconds : 30f;
+            if (_idleNoAnnotationSeconds < waitSeconds)
+            {
+                return;
+            }
+
+            _idleNoAnnotationSeconds = 0f;
+            string message = string.IsNullOrEmpty(idleNextStageHintText)
+                ? "準備好進入下一階段了嗎？你可以按下右手 A 按鈕，開始整理「轉變前」與「現在」的記憶，也可以繼續探索與標記。"
+                : idleNextStageHintText;
+            ShowSwitchModeGuideMessage(message, idleNextStageHintDuration);
+        }
+
+        private bool CanTrackIdleNextStageHint()
+        {
+            if (!enableIdleNextStageHint || IsAnyTutorialActive())
+            {
+                return false;
+            }
+
+            if (_annotationPanel == null)
+            {
+                _annotationPanel = FindObjectOfType<AnnotationPanelController>();
+            }
+
+            if (_annotationPanel != null && _annotationPanel.IsOpen)
+            {
+                return false;
+            }
+
+            if (_lineOfLifeManager == null)
+            {
+                _lineOfLifeManager = FindObjectOfType<LineOfLifeManager>();
+            }
+
+            if (_lineOfLifeManager != null && _lineOfLifeManager.IsOpen)
+            {
+                return false;
+            }
+
+            if (_lineOfLife3D == null)
+            {
+                _lineOfLife3D = FindObjectOfType<LineOfLife3DViewController>();
+            }
+
+            if (_lineOfLife3D != null && _lineOfLife3D.IsVisible)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public void ShowCurrentModeGuide()
         {
             ShowSwitchModeGuide();
+        }
+
+        public void ShowSwitchModeGuideMessage(string message, float duration = 0f)
+        {
+            _overrideSwitchModeGuideText = message;
+            _overrideSwitchModeGuideDuration = duration;
+            ShowSwitchModeGuide(true);
         }
 
         private void ShowSwitchModeGuide()
@@ -212,7 +298,9 @@ namespace EchoSpace.UI
 
             if (switchModeGuideText != null)
             {
-                switchModeGuideText.text = GetCurrentModeLabel();
+                switchModeGuideText.text = string.IsNullOrEmpty(_overrideSwitchModeGuideText)
+                    ? GetCurrentModeLabel()
+                    : _overrideSwitchModeGuideText;
             }
 
             if (switchModeGuide.transform.parent != null
@@ -234,9 +322,14 @@ namespace EchoSpace.UI
             StopSwitchModeGuideHide();
             if (!IsAnyTutorialActive())
             {
-                float duration = switchModeGuideDuration > 0f ? switchModeGuideDuration : 5f;
+                float duration = _overrideSwitchModeGuideDuration > 0f
+                    ? _overrideSwitchModeGuideDuration
+                    : (switchModeGuideDuration > 0f ? switchModeGuideDuration : 5f);
                 _switchModeGuideHideRoutine = StartCoroutine(HideSwitchModeGuideAfterDelay(duration));
             }
+
+            _overrideSwitchModeGuideText = null;
+            _overrideSwitchModeGuideDuration = 0f;
             Debug.Log("[TutorialOverlay] SwitchModeGuide shown: " + (switchModeGuideText != null ? switchModeGuideText.text : "(no text)"));
         }
 
