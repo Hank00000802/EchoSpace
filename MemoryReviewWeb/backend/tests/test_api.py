@@ -66,7 +66,8 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(first["timeCategory"], "Past")
         self.assertEqual(first["screenshot"]["url"], "/api/sessions/%s/cards/a0000001/screenshot" % SA)
         self.assertIsNone(v["memoryCards"][2]["screenshot"])
-        self.assertEqual(v["counts"], {"memoryCards": 4, "connectionCards": 2, "withScreenshot": 3})
+        self.assertEqual(v["counts"], {"memoryCards": 4, "connectionCards": 2, "withScreenshot": 3, "trashed": 0})
+        self.assertEqual(v["trash"], [])
 
     def test_only_display_fields_are_returned(self):
         text = self.client.get("/api/sessions/" + SA).text
@@ -231,6 +232,47 @@ class ApiTests(unittest.TestCase):
         self.client.get("/api/sessions/%s/cards/a0000001/screenshot" % SA)
         self.client.get("/api/sessions/" + SB)
         self.assertEqual(before, snapshot(self.root))
+
+    # ---------------------------------------------------------------- trash overlay (does not touch research data)
+
+    def test_move_to_trash_and_restore_leaves_session_json_untouched(self):
+        session_json = self.research / SA / "session.json"
+        before = hashlib.sha256(session_json.read_bytes()).hexdigest()
+        moved = self.client.post("/api/sessions/" + SA + "/trash", json={"kind": "memory", "cardId": "a0000001"})
+        self.assertEqual(moved.status_code, 200, moved.text)
+        body = moved.json()
+        self.assertEqual(body["counts"]["trashed"], 1)
+        self.assertEqual([(i["kind"], i["cardId"]) for i in body["trash"]], [("memory", "a0000001")])
+        self.assertEqual(hashlib.sha256(session_json.read_bytes()).hexdigest(), before)
+        self.assertTrue((self.root / "review" / SA / "trash.json").is_file())
+        self.assertFalse((self.research / SA / "trash.json").exists())
+
+        restored = self.client.post("/api/sessions/" + SA + "/trash/restore", json={"kind": "memory", "cardId": "a0000001"})
+        self.assertEqual(restored.status_code, 200, restored.text)
+        self.assertEqual(restored.json()["trash"], [])
+        self.assertEqual(self.view()["counts"]["trashed"], 0)
+        self.assertEqual(hashlib.sha256(session_json.read_bytes()).hexdigest(), before)
+
+    def test_trash_connection_card_and_idempotent_move(self):
+        first = self.client.post("/api/sessions/" + SA + "/trash", json={"kind": "connection", "cardId": "c-a01"})
+        second = self.client.post("/api/sessions/" + SA + "/trash", json={"kind": "connection", "cardId": "c-a01"})
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(len(second.json()["trash"]), 1)
+
+    def test_trash_does_not_cross_sessions(self):
+        self.client.post("/api/sessions/" + SA + "/trash", json={"kind": "memory", "cardId": "a0000001"})
+        other = self.view(SB)
+        self.assertEqual(other["trash"], [])
+        steal = self.client.post("/api/sessions/" + SB + "/trash", json={"kind": "memory", "cardId": "a0000001"})
+        self.assertEqual(steal.status_code, 404)
+        missing = self.client.post("/api/sessions/" + SA + "/trash", json={"kind": "connection", "cardId": "a0000001"})
+        self.assertEqual(missing.status_code, 404)
+
+    def test_trash_rejected_for_disallowed_session(self):
+        r = self.client.post("/api/sessions/" + SC + "/trash", json={"kind": "memory", "cardId": "c0000001"})
+        self.assertEqual(r.status_code, 404)
+        self.assertEqual(r.json()["error"]["code"], "session_not_available")
 
     # ---------------------------------------------------------------- schema handling
 

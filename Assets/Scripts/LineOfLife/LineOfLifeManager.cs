@@ -771,17 +771,6 @@ namespace EchoSpace.LineOfLife
             LogCompletedCategory("Present", present);
             LogCompletedCategory("Unclassified", unclassified);
 
-            if (useGeneratedTransitionFlow)
-            {
-                if (past.Count < 1 || present.Count < 1)
-                {
-                    Debug.LogWarning(
-                        "[GeneratedTransitionFlow] Need at least one Past and one Present card before opening 3D timeline. "
-                        + "Past=" + past.Count + " Present=" + present.Count);
-                    return;
-                }
-            }
-
             if (TryOpenLineOfLife3DView())
             {
                 return;

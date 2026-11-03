@@ -47,6 +47,11 @@ const ERROR_TEXT = new Map<string, string>([
   ["session_unreadable", "session.json 無法讀取或格式損毀。"],
   ["internal_error", "伺服器發生內部錯誤。"],
   ["network", "無法連線到本地伺服器，請確認後端已啟動。"],
+  ["card_not_available", "找不到這張卡片。"],
+  ["invalid_card_id", "卡片 ID 不正確。"],
+  ["trash_write_failed", "無法寫入垃圾桶，請檢查資料夾權限。"],
+  ["trash_unreadable", "垃圾桶資料無法讀取。"],
+  ["trash_full", "垃圾桶已滿。"],
 ]);
 
 export function errorText(code: string): string {

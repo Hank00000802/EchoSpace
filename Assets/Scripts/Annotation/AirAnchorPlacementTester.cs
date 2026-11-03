@@ -65,6 +65,12 @@ namespace EchoSpace.Annotation
         public KeyCode debugIncreaseDistanceKey = KeyCode.Equals;
         public KeyCode debugDecreaseDistanceKey = KeyCode.Minus;
 
+        [Header("MemoryAnchor Aim Tolerance")]
+        [Tooltip("Extra radius (m) added to the anchor collider when testing whether the ray points at it.")]
+        public float anchorInspectExtraRadius = 0.04f;
+        public float anchorInspectMinRadius = 0.06f;
+        public float anchorInspectMaxRadius = 0.12f;
+
         [Header("XR UI Blocking")]
         public bool blockXRPlacementWhenAnnotationPanelOpen = true;
         public bool blockXRPlacementWhenPointerOverUI = true;
@@ -628,7 +634,21 @@ namespace EchoSpace.Annotation
             MemoryAnchor[] all = FindObjectsOfType<MemoryAnchor>();
             float bestAlong = float.MaxValue;
             float maxDist = maxMarkerDistance + 1f;
-            const float worldClickRadius = 0.16f;
+
+            // World-space UI (e.g. the memory detail panel and its Close button) has no collider,
+            // so a purely geometric test would "see through" it. Remember how far the UI is.
+            float uiAlong = float.MaxValue;
+            if (xrRayInteractor != null
+                && xrRayInteractor.TryGetCurrentUIRaycastResult(out RaycastResult uiHit)
+                && uiHit.isValid)
+            {
+                float projected = Vector3.Dot(uiHit.worldPosition - ray.origin, ray.direction);
+                float candidateUi = projected > 0.01f ? projected : uiHit.distance;
+                if (candidateUi > 0.01f)
+                {
+                    uiAlong = candidateUi;
+                }
+            }
 
             for (int i = 0; i < all.Length; i++)
             {
@@ -638,15 +658,34 @@ namespace EchoSpace.Annotation
                     continue;
                 }
 
-                Vector3 toAnchor = candidate.transform.position - ray.origin;
+                // Aim at the collider centre (prefab collider is offset), not the pivot.
+                Vector3 center = candidate.transform.position;
+                float hitRadius = anchorInspectMinRadius;
+                Collider col = candidate.GetComponent<Collider>();
+                if (col != null && col.enabled)
+                {
+                    center = col.bounds.center;
+                    Vector3 ext = col.bounds.extents;
+                    hitRadius = Mathf.Max(ext.x, Mathf.Max(ext.y, ext.z)) + anchorInspectExtraRadius;
+                }
+
+                hitRadius = Mathf.Clamp(hitRadius, anchorInspectMinRadius, anchorInspectMaxRadius);
+
+                Vector3 toAnchor = center - ray.origin;
                 float along = Vector3.Dot(toAnchor, ray.direction);
                 if (along < 0.15f || along > maxDist)
                 {
                     continue;
                 }
 
+                // UI is in front of this anchor -> the ray is on the UI, not on the anchor.
+                if (along > uiAlong - 0.02f)
+                {
+                    continue;
+                }
+
                 float lateral = Vector3.Cross(ray.direction, toAnchor).magnitude;
-                if (lateral > worldClickRadius)
+                if (lateral > hitRadius)
                 {
                     continue;
                 }

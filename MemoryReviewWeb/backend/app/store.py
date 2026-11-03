@@ -278,10 +278,12 @@ class SessionStore:
                 memoryCards=len(cards),
                 connectionCards=len(connections),
                 withScreenshot=sum(1 for c in cards if c.screenshot is not None),
+                trashed=0,
             ),
             memoryCards=cards,
             temporalClassification=groups,
             connectionCards=connections,
+            trash=[],
             issues=issues,
         )
 

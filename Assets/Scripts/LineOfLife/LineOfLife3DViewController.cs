@@ -371,6 +371,12 @@ namespace EchoSpace.LineOfLife
             }
         }
 
+        private void SuppressPendingRightGripToggle()
+        {
+            _right3DViewHoldTimer = 0f;
+            _right3DViewHoldTriggered = IsRight3DViewHoldPressed();
+        }
+
         private bool IsRight3DViewHoldPressed()
         {
             bool pressed = false;
@@ -1220,6 +1226,7 @@ namespace EchoSpace.LineOfLife
 
         public void Open()
         {
+            SuppressPendingRightGripToggle();
             bool wasVisible = viewRoot != null && viewRoot.activeSelf;
             if (viewRoot != null)
             {
@@ -1607,10 +1614,18 @@ namespace EchoSpace.LineOfLife
 
         public void Close()
         {
+            SuppressPendingRightGripToggle();
             bool wasVisible = viewRoot != null && viewRoot.activeSelf;
-            RestorePracticeTimelineDrawOrder();
-            HideAllPrompts();
-            HidePairSelectionInstruction();
+            try
+            {
+                RestorePracticeTimelineDrawOrder();
+                HideAllPrompts();
+                HidePairSelectionInstruction();
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[LineOfLife3DView] Close cleanup failed: " + e.Message);
+            }
 
             if (viewRoot != null)
             {
@@ -2926,21 +2941,19 @@ namespace EchoSpace.LineOfLife
             for (int i = 0; i < graphics.Length; i++)
             {
                 Graphic graphic = graphics[i];
-                if (graphic == null || graphic is TMP_Text || IsPracticeGraphicTracked(graphic))
+                if (graphic == null || IsTmpOwnedGraphic(graphic) || IsPracticeGraphicTracked(graphic))
                 {
                     continue;
                 }
 
+                Material current = TryGetGraphicMaterial(graphic);
                 _practiceGraphicStates.Add(new GraphicPracticeMaterialState
                 {
                     graphic = graphic,
-                    material = graphic.material
+                    material = current
                 });
 
-                if (uiMaterial != null)
-                {
-                    graphic.material = uiMaterial;
-                }
+                TrySetGraphicMaterial(graphic, uiMaterial);
             }
 
             TMP_Text[] texts = root.GetComponentsInChildren<TMP_Text>(true);
@@ -2982,7 +2995,7 @@ namespace EchoSpace.LineOfLife
 
         private void ApplyPracticeTmpDrawOrder(TMP_Text text, Shader overlayShader)
         {
-            Material fontMaterial = text.fontMaterial;
+            Material fontMaterial = TryGetTmpSharedMaterial(text);
             bool hasZTestMode = fontMaterial != null && fontMaterial.HasProperty("_ZTestMode");
             _practiceTmpStates.Add(new TmpPracticeMaterialState
             {
@@ -3015,6 +3028,68 @@ namespace EchoSpace.LineOfLife
                 ? PracticeNodeRenderQueue
                 : PracticeTimelineRenderQueue;
             text.ForceMeshUpdate();
+        }
+
+        private static Material TryGetTmpSharedMaterial(TMP_Text text)
+        {
+            if (text == null || text.font == null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return text.fontSharedMaterial;
+            }
+            catch (System.ArgumentNullException)
+            {
+                return null;
+            }
+        }
+
+        private static Material TryGetGraphicMaterial(Graphic graphic)
+        {
+            if (graphic == null || IsTmpOwnedGraphic(graphic))
+            {
+                return null;
+            }
+
+            try
+            {
+                return graphic.material;
+            }
+            catch (System.Exception)
+            {
+                return null;
+            }
+        }
+
+        private static void TrySetGraphicMaterial(Graphic graphic, Material material)
+        {
+            if (graphic == null || IsTmpOwnedGraphic(graphic) || material == null)
+            {
+                return;
+            }
+
+            try
+            {
+                graphic.material = material;
+            }
+            catch (System.Exception)
+            {
+            }
+        }
+
+        private static bool IsTmpOwnedGraphic(Graphic graphic)
+        {
+            if (graphic == null || graphic is TMP_Text || graphic is TMP_SubMeshUI)
+            {
+                return true;
+            }
+
+            return graphic.GetComponent<TMP_SubMeshUI>() != null
+                || graphic.GetComponent<TMP_SubMesh>() != null
+                || graphic.GetComponent<Mask>() != null;
         }
 
         private int GetPracticeCanvasSortingOrder(Canvas canvas)
@@ -3112,7 +3187,7 @@ namespace EchoSpace.LineOfLife
                 }
                 else
                 {
-                    Material fontMaterial = label.fontMaterial;
+                    Material fontMaterial = TryGetTmpSharedMaterial(label);
                     if (fontMaterial != null)
                     {
                         if (fontMaterial.HasProperty("_ZTestMode"))
@@ -3213,12 +3288,12 @@ namespace EchoSpace.LineOfLife
             for (int i = 0; i < _practiceGraphicStates.Count; i++)
             {
                 GraphicPracticeMaterialState state = _practiceGraphicStates[i];
-                if (state.graphic == null)
+                if (state.graphic == null || IsTmpOwnedGraphic(state.graphic))
                 {
                     continue;
                 }
 
-                state.graphic.material = state.material;
+                TrySetGraphicMaterial(state.graphic, state.material);
             }
 
             for (int i = 0; i < _practiceTmpStates.Count; i++)
@@ -3229,7 +3304,7 @@ namespace EchoSpace.LineOfLife
                     continue;
                 }
 
-                Material fontMaterial = state.text.fontMaterial;
+                Material fontMaterial = TryGetTmpSharedMaterial(state.text);
                 if (fontMaterial == null)
                 {
                     continue;
@@ -3457,7 +3532,7 @@ namespace EchoSpace.LineOfLife
                 }
 
                 text.raycastTarget = false;
-                Material fontMaterial = text.fontMaterial;
+                Material fontMaterial = TryGetTmpSharedMaterial(text);
                 if (fontMaterial == null)
                 {
                     continue;
@@ -3489,17 +3564,14 @@ namespace EchoSpace.LineOfLife
             for (int i = 0; i < graphics.Length; i++)
             {
                 Graphic graphic = graphics[i];
-                if (graphic == null || graphic is TMP_Text)
+                if (graphic == null || IsTmpOwnedGraphic(graphic))
                 {
                     continue;
                 }
 
                 bool isButtonGraphic = graphic.GetComponent<Button>() != null;
                 graphic.raycastTarget = isButtonGraphic;
-                if (uiMaterial != null)
-                {
-                    graphic.material = uiMaterial;
-                }
+                TrySetGraphicMaterial(graphic, uiMaterial);
             }
         }
 

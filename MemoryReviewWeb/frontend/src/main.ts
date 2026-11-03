@@ -1,17 +1,30 @@
 import "./styles.css";
-import { ApiError, fetchSession } from "./api";
+import { ApiError, fetchSession, moveToTrash, restoreFromTrash } from "./api";
 import { closeAllDialogs, openCardDialog } from "./components/cardDialog";
-import { renderClassification, renderConnections, renderGallery, renderIssues } from "./components/views";
+import { confirmAction } from "./components/confirm";
+import { createGuidePrompt } from "./components/guidePrompt";
+import { renderTimeline } from "./components/timeline";
+import { hideUndoToast, showUndoToast } from "./components/undoToast";
+import {
+  renderClassification,
+  renderConnections,
+  renderGallery,
+  renderIssues,
+  renderTrash,
+  type ReviewActions,
+} from "./components/views";
+import { visibleConnections, visibleMemory } from "./filter";
 import { clear, h } from "./dom";
 import { errorText, formatTime } from "./labels";
-import type { MemoryCardView, SessionView } from "./types";
+import type { MemoryCardView, SessionView, TrashItemView } from "./types";
 
-type TabId = "gallery" | "classification" | "connections";
+type TabId = "gallery" | "classification" | "connections" | "trash";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: "gallery", label: "記憶圖庫" },
   { id: "classification", label: "時間分類" },
   { id: "connections", label: "連結卡片" },
+  { id: "trash", label: "垃圾桶" },
 ];
 
 // The current session lives only in memory (no localStorage / cookies): closing the tab forgets it.
@@ -19,6 +32,7 @@ let current: SessionView | null = null;
 let activeTab: TabId = "gallery";
 let requestSeq = 0;
 let controller: AbortController | null = null;
+let busy = false;
 
 const app = document.getElementById("app");
 if (!app) throw new Error("#app not found");
@@ -47,25 +61,44 @@ const summaryBox = h("div", { class: "summary" });
 const issuesBox = h("div");
 const tabBar = h("div", { class: "tabs", attrs: { role: "tablist", "aria-label": "檢視方式" } });
 const panel = h("main", { class: "panel", attrs: { role: "tabpanel", tabindex: "-1" } });
+const timelineBox = h("div", { class: "timeline-slot" });
 
 app.append(
   h(
     "header",
     { class: "top" },
     h("h1", { text: "EchoSpace 記憶回顧" }),
-    h("p", { class: "muted", text: "本機唯讀檢視。僅能開啟研究者在啟動時允許的 Session。" }),
+    h("p", { class: "muted", text: "本機回顧。刪除會移到垃圾桶，不會改到原始研究資料。" }),
     form,
   ),
+  createGuidePrompt(),
   statusBox,
   summaryBox,
   issuesBox,
   tabBar,
   panel,
+  timelineBox,
 );
 
+const actions: ReviewActions = {
+  openMemory: openCard,
+  deleteMemory: (card) => requestDelete("memory", card.cardId, "這張記憶卡"),
+  deleteConnection: (conn) => requestDelete("connection", conn.cardId, "這張連結卡片"),
+  restoreMemory: (card) => void restore("memory", card.cardId),
+  restoreConnection: (conn) => void restore("connection", conn.cardId),
+};
+
 function openCard(card: MemoryCardView): void {
-  const related = current ? current.connectionCards.filter((c) => c.sourceCardId === card.cardId) : [];
-  openCardDialog(card, related);
+  if (!current) return;
+  const hiddenConn = new Set(current.trash.filter((t) => t.kind === "connection").map((t) => t.cardId));
+  const related = current.connectionCards.filter((c) => c.sourceCardId === card.cardId && !hiddenConn.has(c.cardId));
+  const inTrash = current.trash.some((t) => t.kind === "memory" && t.cardId === card.cardId);
+  openCardDialog(
+    card,
+    related,
+    inTrash ? undefined : (target) => requestDelete("memory", target.cardId, "這張記憶卡"),
+    inTrash ? (target) => void restore("memory", target.cardId) : undefined,
+  );
 }
 
 function setStatus(message: string, kind: "info" | "error" = "info"): void {
@@ -73,16 +106,66 @@ function setStatus(message: string, kind: "info" | "error" = "info"): void {
   if (message) statusBox.append(h("p", { class: "status__msg status__msg--" + kind, text: message }));
 }
 
+function applySession(data: SessionView): void {
+  current = data;
+  renderSummary();
+  renderTabs();
+  renderPanel();
+  renderIssues(issuesBox, data);
+}
+
+function requestDelete(kind: TrashItemView["kind"], cardId: string, label: string): void {
+  confirmAction(
+    "移到垃圾桶？",
+    label + "會從回顧畫面隱藏，之後可以從垃圾桶還原。原始研究資料不會被刪除。",
+    "移到垃圾桶",
+    () => {
+      void trash(kind, cardId);
+    },
+  );
+}
+
+async function trash(kind: TrashItemView["kind"], cardId: string): Promise<void> {
+  if (!current || busy) return;
+  busy = true;
+  try {
+    const data = await moveToTrash(current.session.sessionId, kind, cardId);
+    applySession(data);
+    showUndoToast("已移到垃圾桶。", () => {
+      void restore(kind, cardId);
+    });
+  } catch (error) {
+    const code = error instanceof ApiError ? error.code : "internal_error";
+    setStatus(errorText(code), "error");
+  } finally {
+    busy = false;
+  }
+}
+
+async function restore(kind: TrashItemView["kind"], cardId: string): Promise<void> {
+  if (!current || busy) return;
+  busy = true;
+  hideUndoToast();
+  try {
+    applySession(await restoreFromTrash(current.session.sessionId, kind, cardId));
+  } catch (error) {
+    const code = error instanceof ApiError ? error.code : "internal_error";
+    setStatus(errorText(code), "error");
+  } finally {
+    busy = false;
+  }
+}
+
 function renderTabs(): void {
   clear(tabBar);
   for (const tab of TABS) {
     const selected = tab.id === activeTab;
-    const count =
-      current === null
-        ? ""
-        : tab.id === "connections"
-          ? "（" + current.counts.connectionCards + "）"
-          : "（" + current.counts.memoryCards + "）";
+    let count = "";
+    if (current) {
+      if (tab.id === "connections") count = "（" + visibleConnections(current).length + "）";
+      else if (tab.id === "trash") count = "（" + current.counts.trashed + "）";
+      else count = "（" + visibleMemory(current).length + "）";
+    }
     tabBar.append(
       h("button", {
         class: "tab" + (selected ? " tab--active" : ""),
@@ -103,12 +186,16 @@ function renderTabs(): void {
 function renderPanel(): void {
   if (!current) {
     clear(panel);
+    clear(timelineBox);
     panel.append(h("p", { class: "empty", text: "請輸入 Session ID 後按「載入」。" }));
     return;
   }
-  if (activeTab === "gallery") renderGallery(panel, current, openCard);
-  else if (activeTab === "classification") renderClassification(panel, current, openCard);
-  else renderConnections(panel, current, openCard);
+  if (activeTab === "gallery") renderGallery(panel, current, actions);
+  else if (activeTab === "classification") renderClassification(panel, current, actions);
+  else if (activeTab === "connections") renderConnections(panel, current, actions);
+  else renderTrash(panel, current, actions);
+  if (activeTab === "trash") clear(timelineBox);
+  else renderTimeline(timelineBox, current, actions);
 }
 
 function renderSummary(): void {
@@ -116,16 +203,17 @@ function renderSummary(): void {
   if (!current) return;
   const { session, counts } = current;
   summaryBox.append(
-    h("span", { class: "summary__id", text: session.sessionId }),
-    h("span", { text: "記憶卡 " + counts.memoryCards }),
+    h("span", { text: "記憶卡 " + visibleMemory(current).length }),
     h("span", { text: "截圖 " + counts.withScreenshot }),
-    h("span", { text: "連結卡片 " + counts.connectionCards }),
-    h("span", { class: "muted", text: "匯出時間 " + formatTime(session.exportedAtUtc) + "（版本 " + session.exportRevision + "）" }),
+    h("span", { text: "連結卡片 " + visibleConnections(current).length }),
+    h("span", { text: "垃圾桶 " + counts.trashed }),
+    h("span", { class: "muted", text: "匯出時間 " + formatTime(session.exportedAtUtc) }),
   );
 }
 
 function resetView(): void {
   current = null;
+  hideUndoToast();
   closeAllDialogs();
   clear(summaryBox);
   clear(issuesBox);
@@ -138,7 +226,6 @@ async function loadSession(rawId: string): Promise<void> {
   controller?.abort();
   const seq = ++requestSeq;
 
-  // Drop everything from the previous session first, so data can never be mixed on screen.
   resetView();
   if (!sessionId) {
     setStatus("請輸入 Session ID。", "error");
@@ -149,14 +236,11 @@ async function loadSession(rawId: string): Promise<void> {
   setStatus("載入中…");
   try {
     const data = await fetchSession(sessionId, controller.signal);
-    if (seq !== requestSeq) return; // a newer request replaced this one
-    current = data;
+    if (seq !== requestSeq) return;
+    if (!Array.isArray(data.trash)) data.trash = [];
     setStatus("");
     history.replaceState(null, "", "?session=" + encodeURIComponent(data.session.sessionId));
-    renderSummary();
-    renderTabs();
-    renderPanel();
-    renderIssues(issuesBox, data);
+    applySession(data);
   } catch (error) {
     if (seq !== requestSeq) return;
     if (error instanceof DOMException && error.name === "AbortError") return;
@@ -172,6 +256,7 @@ form.addEventListener("submit", (event) => {
 
 renderTabs();
 renderPanel();
+renderTimeline(timelineBox, current, actions);
 
 const initial = new URLSearchParams(location.search).get("session");
 if (initial) {

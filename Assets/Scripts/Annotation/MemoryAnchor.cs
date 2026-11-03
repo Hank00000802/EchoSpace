@@ -2,6 +2,7 @@ using EchoSpace.Core;
 using EchoSpace.LineOfLife;
 using EchoSpace.UI;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.XR.Interaction.Toolkit;
 
 namespace EchoSpace.Annotation
@@ -24,6 +25,7 @@ namespace EchoSpace.Annotation
 
         private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
         private const float OpenDebounceSeconds = 0.25f;
+        private const float ReopenCooldownSeconds = 0.5f;
 
         public void Initialize(MemoryAnchorData data)
         {
@@ -93,7 +95,35 @@ namespace EchoSpace.Annotation
 
         private void OnSelectEntered(SelectEnterEventArgs args)
         {
+            // World-space UI has no collider, so the ray can pass through a panel (e.g. its Close
+            // button) and still "select" this triangle behind it. UI in front wins.
+            if (IsOccludedByUi(args.interactorObject))
+            {
+                Debug.Log("[MemoryAnchor] Select ignored: UI is in front of this anchor.");
+                return;
+            }
+
             OpenStoredMemoryDetail();
+        }
+
+        private bool IsOccludedByUi(IXRSelectInteractor interactor)
+        {
+            XRRayInteractor ray = interactor as XRRayInteractor;
+            if (ray == null || !ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) || !ui.isValid)
+            {
+                return false;
+            }
+
+            Transform origin = ray.rayOriginTransform != null ? ray.rayOriginTransform : ray.transform;
+            Vector3 dir = origin.forward;
+            float uiAlong = Vector3.Dot(ui.worldPosition - origin.position, dir);
+            if (uiAlong <= 0.01f)
+            {
+                uiAlong = ui.distance;
+            }
+
+            float anchorAlong = Vector3.Dot(transform.position - origin.position, dir);
+            return uiAlong > 0.01f && uiAlong < anchorAlong;
         }
 
         private void OnHoverEntered(HoverEnterEventArgs args)
@@ -150,6 +180,19 @@ namespace EchoSpace.Annotation
                     _loggedMissingPanel = true;
                 }
 
+                return false;
+            }
+
+            // Already showing: re-opening would also re-place the panel in front of the player,
+            // so the pointer-up of the Close click would miss the button.
+            if (panel.IsOpen)
+            {
+                return false;
+            }
+
+            // The press that just closed the panel must not open it again.
+            if (Time.unscaledTime - panel.LastCloseTime < ReopenCooldownSeconds)
+            {
                 return false;
             }
 

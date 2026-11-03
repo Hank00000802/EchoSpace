@@ -46,9 +46,16 @@ export interface SessionView {
     exportedAtUtc: string;
     exportRevision: number;
   };
-  counts: { memoryCards: number; connectionCards: number; withScreenshot: number };
+  counts: { memoryCards: number; connectionCards: number; withScreenshot: number; trashed: number };
   memoryCards: MemoryCardView[];
   temporalClassification: ClassificationGroupView[];
   connectionCards: ConnectionCardView[];
+  trash: TrashItemView[];
   issues: IssueView[];
+}
+
+export interface TrashItemView {
+  kind: "memory" | "connection";
+  cardId: string;
+  deletedAtUtc: string;
 }

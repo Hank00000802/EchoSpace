@@ -17,7 +17,20 @@ namespace EchoSpace.VoiceInput
             int sampleCount = clip.samples * clip.channels;
             float[] samples = new float[sampleCount];
             clip.GetData(samples, 0);
+            return FromSamples(samples, clip.channels, clip.frequency);
+        }
 
+        /// <summary>
+        /// Build a 16-bit PCM WAV from interleaved float samples (used for chunked recording).
+        /// </summary>
+        public static byte[] FromSamples(float[] samples, int channelCount, int sampleRate)
+        {
+            if (samples == null || samples.Length == 0 || channelCount <= 0 || sampleRate <= 0)
+            {
+                return Array.Empty<byte>();
+            }
+
+            int sampleCount = samples.Length;
             short[] intData = new short[sampleCount];
             for (int i = 0; i < sampleCount; i++)
             {
@@ -32,8 +45,7 @@ namespace EchoSpace.VoiceInput
             using (MemoryStream stream = new MemoryStream(44 + byteCount))
             using (BinaryWriter writer = new BinaryWriter(stream))
             {
-                int sampleRate = clip.frequency;
-                short channels = (short)clip.channels;
+                short channels = (short)channelCount;
                 short bitsPerSample = 16;
                 int byteRate = sampleRate * channels * (bitsPerSample / 8);
                 short blockAlign = (short)(channels * (bitsPerSample / 8));

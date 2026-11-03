@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using EchoSpace.Annotation;
 using EchoSpace.LineOfLife;
+using EchoSpace.SwitchView;
 using TMPro;
 using UnityEngine;
 using UnityEngine.XR;
@@ -62,6 +63,14 @@ namespace EchoSpace.UI
         [SerializeField] private string idleNextStageHintText =
             "準備好進入下一階段了嗎？你可以按下右手 A 按鈕，開始整理「轉變前」與「現在」的記憶，也可以繼續探索與標記。";
 
+        [Tooltip("When the idle next-stage prompt appears, also show the right-hand A button hint.")]
+        [SerializeField] private bool showRightAHintWithIdlePrompt = true;
+        [Tooltip("Optional. Header canvas under TutorialOverlayRoot; auto-found by name when empty.")]
+        [SerializeField] private GameObject tutorialHeaderCanvas;
+
+        private bool _idleAHintVisible;
+        private bool _headerHiddenForIdleHint;
+
         private float _gripHoldTimer;
         private bool _gripToggleTriggered;
         private bool _leftXWasPressed;
@@ -79,6 +88,7 @@ namespace EchoSpace.UI
         private AnnotationPanelController _annotationPanel;
         private LineOfLifeManager _lineOfLifeManager;
         private LineOfLife3DViewController _lineOfLife3D;
+        private SwitchViewController _switchViewController;
         private string _overrideSwitchModeGuideText;
         private float _overrideSwitchModeGuideDuration;
         private float _idleNoAnnotationSeconds;
@@ -132,6 +142,8 @@ namespace EchoSpace.UI
 
         private void Update()
         {
+            UpdateIdleRightAHintState();
+
             if (VRIntroGuideController.IsIntroActive)
             {
                 _idleNoAnnotationSeconds = 0f;
@@ -223,11 +235,31 @@ namespace EchoSpace.UI
                 ? "準備好進入下一階段了嗎？你可以按下右手 A 按鈕，開始整理「轉變前」與「現在」的記憶，也可以繼續探索與標記。"
                 : idleNextStageHintText;
             ShowSwitchModeGuideMessage(message, idleNextStageHintDuration);
+            ShowIdleRightAHint();
         }
 
         private bool CanTrackIdleNextStageHint()
         {
             if (!enableIdleNextStageHint || IsAnyTutorialActive())
+            {
+                return false;
+            }
+
+            // Once the switch-view stage is reached (prompt showing, or already switched,
+            // which is when OpenPromptButton / AfterSwitch prompt are used), never nag again.
+            if (SwitchViewController.HasSwitchedView)
+            {
+                return false;
+            }
+
+            if (_switchViewController == null)
+            {
+                _switchViewController = FindObjectOfType<SwitchViewController>();
+            }
+
+            if (_switchViewController != null
+                && _switchViewController.switchViewRoot != null
+                && _switchViewController.switchViewRoot.activeInHierarchy)
             {
                 return false;
             }
@@ -341,6 +373,7 @@ namespace EchoSpace.UI
         private void HideSwitchModeGuide(bool playExit)
         {
             bool wasVisible = _switchModeGuideVisible;
+            HideIdleRightAHint();
             StopSwitchModeGuideHide();
             _switchModeGuideVisible = false;
             _showSwitchModeGuideThisFrame = false;
@@ -505,6 +538,100 @@ namespace EchoSpace.UI
             return null;
         }
 
+        /// <summary>
+        /// Show only the right-hand A hint (no tutorial mode, no header) together with the idle prompt.
+        /// </summary>
+        private void ShowIdleRightAHint()
+        {
+            if (!showRightAHintWithIdlePrompt
+                || IsAnyTutorialActive()
+                || rightAHint == null
+                || overlayRoot == null)
+            {
+                return;
+            }
+
+            // Hints live under overlayRoot (inactive outside tutorial mode), so it must be active.
+            overlayRoot.SetActive(true);
+
+            GameObject header = ResolveTutorialHeader();
+            if (header != null && header.activeSelf)
+            {
+                header.SetActive(false);
+                _headerHiddenForIdleHint = true;
+            }
+
+            rightAHint.SetHintLabel("右手 A：開啟記憶整理面板");
+            rightAHint.Show();
+            _idleAHintVisible = true;
+        }
+
+        private void HideIdleRightAHint()
+        {
+            if (!_idleAHintVisible)
+            {
+                return;
+            }
+
+            _idleAHintVisible = false;
+            HideHint(rightAHint);
+
+            // In tutorial mode the overlay stays on; otherwise close it again.
+            if (!IsTutorialModeActive)
+            {
+                RestoreTutorialHeader();
+                if (overlayRoot != null && overlayRoot != gameObject)
+                {
+                    overlayRoot.SetActive(false);
+                }
+            }
+        }
+
+        private GameObject ResolveTutorialHeader()
+        {
+            if (tutorialHeaderCanvas == null && overlayRoot != null)
+            {
+                Transform found = FindChildByName(overlayRoot.transform, "TutorialHeaderCanvas");
+                if (found != null)
+                {
+                    tutorialHeaderCanvas = found.gameObject;
+                }
+            }
+
+            return tutorialHeaderCanvas;
+        }
+
+        private void RestoreTutorialHeader()
+        {
+            if (!_headerHiddenForIdleHint)
+            {
+                return;
+            }
+
+            _headerHiddenForIdleHint = false;
+            if (tutorialHeaderCanvas != null)
+            {
+                tutorialHeaderCanvas.SetActive(true);
+            }
+        }
+
+        private void UpdateIdleRightAHintState()
+        {
+            if (!_idleAHintVisible)
+            {
+                return;
+            }
+
+            // Follow the prompt: hide when it is gone, a tutorial starts, or any panel opened (e.g. A pressed).
+            if (!_switchModeGuideVisible
+                || VRIntroGuideController.IsIntroActive
+                || IsAnyTutorialActive()
+                || !CanTrackIdleNextStageHint())
+            {
+                HideIdleRightAHint();
+            }
+        }
+
         private void CheckTutorialHintInputs()
         {
             if (WasPressedThisFrame(IsLeftXPressed(), ref _leftXWasPressed))
@@ -564,6 +691,8 @@ namespace EchoSpace.UI
         {
             IsTutorialModeActive = true;
 
+            // Header may have been hidden by the idle A-button hint.
+            RestoreTutorialHeader();
             if (overlayRoot != null)
             {
                 overlayRoot.SetActive(true);
@@ -621,6 +750,8 @@ namespace EchoSpace.UI
 
         public void ShowAllBasicHints()
         {
+            RestoreTutorialHeader();
+            _idleAHintVisible = false;
             if (overlayRoot != null)
             {
                 overlayRoot.SetActive(true);
@@ -668,6 +799,7 @@ namespace EchoSpace.UI
 
         public void HideAllHints()
         {
+            _idleAHintVisible = false;
             HideHint(leftGripHint);
             HideHint(leftXHint);
             HideHint(rightTriggerHint);

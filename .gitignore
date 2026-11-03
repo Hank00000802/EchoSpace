@@ -57,6 +57,8 @@ screenshots/
 _test_*.png
 *.keepsake.*
 deletion_requests/
+review/
+trash.json
 
 # Secrets / local config
 .env

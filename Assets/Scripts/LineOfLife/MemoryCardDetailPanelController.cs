@@ -29,8 +29,23 @@ namespace EchoSpace.LineOfLife
         [Tooltip("Must be above LineOfLifeCanvas (1200) and 3D timeline / pair instruction (2600).")]
         [SerializeField] private int panelSortingOrder = 2800;
 
+        [Header("Layout (resized panel support)")]
+        [Tooltip("The panel was resized by non-uniform Scale on Title / Type / Scroll View. " +
+                 "Bake that scale into Width/Height (and font size) at runtime so text wraps and scrolls correctly.")]
+        [SerializeField] private bool normalizeNonUniformScale = true;
+        [Tooltip("Content text font size. 0 = auto (keeps the previous on-screen size after baking scale).")]
+        [SerializeField] private float contentFontSize = 0f;
+        [Tooltip("Width of the vertical scrollbar in panel units (bigger = easier to hit with the ray).")]
+        [SerializeField] private float scrollbarWidth = 60f;
+
         private Material _uiNoZTestMaterial;
         private const int DetailRenderQueue = 4002;
+
+        /// <summary>True while the detail panel is shown.</summary>
+        public bool IsOpen => panelRoot != null && panelRoot.activeSelf;
+
+        /// <summary>Unscaled time of the last Close(); lets other systems ignore the click that just closed it.</summary>
+        public float LastCloseTime { get; private set; } = -100f;
 
         private void Awake()
         {
@@ -40,12 +55,90 @@ namespace EchoSpace.LineOfLife
                 closeButton.onClick.AddListener(Close);
             }
 
+            NormalizeDetailLayout();
             EnsureUiRaycastSetup();
 
             if (panelRoot != null)
             {
                 panelRoot.SetActive(false);
             }
+        }
+
+        /// <summary>
+        /// Title / Type / Scroll View were resized with a non-uniform Scale (e.g. 4.57 x 2.38).
+        /// TMP then lays out text in the tiny unscaled rect (very narrow wrap) and stretches it afterwards.
+        /// Bake the scale into sizeDelta (and font size) so layout happens at the real size.
+        /// </summary>
+        private void NormalizeDetailLayout()
+        {
+            if (!normalizeNonUniformScale)
+            {
+                return;
+            }
+
+            if (contentScrollRect != null)
+            {
+                RectTransform scrollRect = contentScrollRect.transform as RectTransform;
+                if (BakeScaleIntoSize(scrollRect, out float scrollScaleY) && contentText != null
+                    && !contentText.enableAutoSizing && contentFontSize <= 0f)
+                {
+                    contentText.fontSize *= scrollScaleY;
+                }
+            }
+
+            BakeTextScale(titleText);
+            BakeTextScale(typeText);
+            BakeTextScale(phaseText);
+
+            if (contentText != null && !contentText.enableAutoSizing && contentFontSize > 0f)
+            {
+                contentText.fontSize = contentFontSize;
+            }
+        }
+
+        private static void BakeTextScale(TMP_Text text)
+        {
+            if (text == null)
+            {
+                return;
+            }
+
+            RectTransform rect = text.rectTransform;
+            if (BakeScaleIntoSize(rect, out float scaleY) && !text.enableAutoSizing)
+            {
+                text.fontSize *= scaleY;
+            }
+        }
+
+        /// <summary>
+        /// Returns true if a non-uniform / non-1 scale was baked. Only for fixed (non-stretch) anchors.
+        /// </summary>
+        private static bool BakeScaleIntoSize(RectTransform rect, out float scaleY)
+        {
+            scaleY = 1f;
+            if (rect == null)
+            {
+                return false;
+            }
+
+            Vector3 scale = rect.localScale;
+            if (Mathf.Abs(scale.x - 1f) < 0.001f && Mathf.Abs(scale.y - 1f) < 0.001f)
+            {
+                return false;
+            }
+
+            if (rect.anchorMin != rect.anchorMax || scale.x <= 0.0001f || scale.y <= 0.0001f)
+            {
+                return false;
+            }
+
+            Vector2 size = rect.sizeDelta;
+            rect.sizeDelta = new Vector2(size.x * scale.x, size.y * scale.y);
+            rect.localScale = Vector3.one;
+            scaleY = scale.y;
+            Debug.Log("[MemoryCardDetail] Baked scale " + scale + " into size for " + rect.name
+                + " -> " + rect.sizeDelta);
+            return true;
         }
 
         private void OnDestroy()
@@ -159,6 +252,7 @@ namespace EchoSpace.LineOfLife
 
             if (wasOpen)
             {
+                LastCloseTime = Time.unscaledTime;
                 UiSfx.PlayExit();
             }
 
@@ -330,7 +424,8 @@ namespace EchoSpace.LineOfLife
 
             if (insideScroll)
             {
-                text.maskable = false;
+                // Keep maskable: RectMask2D clips via _ClipRect (no stencil needed).
+                text.maskable = true;
                 if (fontMaterial.HasProperty("_ZTestMode"))
                 {
                     fontMaterial.SetFloat("_ZTestMode", 8f);
@@ -518,10 +613,13 @@ namespace EchoSpace.LineOfLife
             const float verticalPadding = 8f;
             const float minHeight = 50f;
 
+            NormalizeDetailLayout();
             StretchDetailViewport();
-            DisableContentMask();
+            ConfigureViewportClipping();
+            EnsureVerticalScrollbarHandle();
 
-            contentText.maskable = false;
+            // Must stay maskable so RectMask2D can clip it to the Viewport.
+            contentText.maskable = true;
             contentText.enableWordWrapping = true;
             contentText.overflowMode = TextOverflowModes.Overflow;
             contentText.alignment = TextAlignmentOptions.TopLeft;
@@ -538,7 +636,13 @@ namespace EchoSpace.LineOfLife
             Canvas.ForceUpdateCanvases();
             contentText.ForceMeshUpdate();
 
-            float preferredHeight = contentText.preferredHeight;
+            // Measure with the width the text will really have once the scrollbar takes its space
+            // (ScrollRect shrinks the Viewport one frame later), so the last lines are not cut off.
+            float availableWidth = GetContentTextWidth(sidePadding);
+            float preferredHeight = availableWidth > 1f
+                ? contentText.GetPreferredValues(contentText.text, availableWidth, 0f).y
+                : contentText.preferredHeight;
+            preferredHeight += contentText.fontSize * 0.75f; // bottom breathing room
             float textHeight = Mathf.Max(preferredHeight, minHeight);
             textRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textHeight);
 
@@ -562,6 +666,31 @@ namespace EchoSpace.LineOfLife
             Canvas.ForceUpdateCanvases();
             contentText.ForceMeshUpdate();
             ResetScrollToTop();
+        }
+
+        private float GetContentTextWidth(float sidePadding)
+        {
+            if (contentScrollRect == null)
+            {
+                return 0f;
+            }
+
+            RectTransform scrollRect = contentScrollRect.transform as RectTransform;
+            if (scrollRect == null)
+            {
+                return 0f;
+            }
+
+            float width = scrollRect.rect.width;
+            Scrollbar bar = contentScrollRect.verticalScrollbar;
+            if (bar != null)
+            {
+                RectTransform barRect = bar.transform as RectTransform;
+                float barWidth = barRect != null ? barRect.sizeDelta.x : 0f;
+                width -= barWidth + contentScrollRect.verticalScrollbarSpacing;
+            }
+
+            return width - sidePadding * 2f - 2f;
         }
 
         private void StretchDetailViewport()
@@ -594,7 +723,115 @@ namespace EchoSpace.LineOfLife
             viewport.gameObject.SetActive(true);
         }
 
-        private void DisableContentMask()
+        /// <summary>
+        /// The scene's "Scrollbar Vertical" has no Handle (m_HandleRect is empty and
+        /// Sliding Area has no child), so clicking / dragging it does nothing.
+        /// Build a handle at runtime and assign it so the scrollbar becomes interactive.
+        /// </summary>
+        private void EnsureVerticalScrollbarHandle()
+        {
+            if (contentScrollRect == null)
+            {
+                return;
+            }
+
+            Scrollbar bar = contentScrollRect.verticalScrollbar;
+            if (bar == null)
+            {
+                return;
+            }
+
+            bar.interactable = true;
+
+            // Wider track = easier to hit with the XR ray on the resized panel.
+            RectTransform barRect = bar.transform as RectTransform;
+            if (barRect != null && scrollbarWidth > 0f
+                && Mathf.Abs(barRect.sizeDelta.x - scrollbarWidth) > 0.01f)
+            {
+                barRect.sizeDelta = new Vector2(scrollbarWidth, barRect.sizeDelta.y);
+            }
+
+            Image barImage = bar.GetComponent<Image>();
+            if (barImage != null)
+            {
+                barImage.raycastTarget = true;
+            }
+
+            if (bar.handleRect != null)
+            {
+                Image existing = bar.handleRect.GetComponent<Image>();
+                if (existing != null)
+                {
+                    existing.raycastTarget = true;
+                }
+
+                return;
+            }
+
+            RectTransform area = null;
+            for (int i = 0; i < bar.transform.childCount; i++)
+            {
+                area = bar.transform.GetChild(i) as RectTransform;
+                if (area != null)
+                {
+                    break;
+                }
+            }
+
+            if (area == null)
+            {
+                GameObject areaObj = new GameObject("Sliding Area", typeof(RectTransform));
+                area = areaObj.GetComponent<RectTransform>();
+                area.SetParent(bar.transform, false);
+                area.anchorMin = Vector2.zero;
+                area.anchorMax = Vector2.one;
+                area.offsetMin = new Vector2(10f, 10f);
+                area.offsetMax = new Vector2(-10f, -10f);
+            }
+
+            Transform existingHandle = area.Find("Handle");
+            RectTransform handleRect = existingHandle != null ? existingHandle as RectTransform : null;
+            if (handleRect == null)
+            {
+                GameObject handleObj = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+                handleRect = handleObj.GetComponent<RectTransform>();
+                handleRect.SetParent(area, false);
+            }
+
+            // Same layout Unity's default scrollbar handle uses; Scrollbar drives the anchors along its axis.
+            handleRect.anchorMin = Vector2.zero;
+            handleRect.anchorMax = Vector2.one;
+            handleRect.pivot = new Vector2(0.5f, 0.5f);
+            handleRect.sizeDelta = new Vector2(20f, 20f);
+            handleRect.localScale = Vector3.one;
+
+            Image handleImage = handleRect.GetComponent<Image>();
+            if (handleImage == null)
+            {
+                handleImage = handleRect.gameObject.AddComponent<Image>();
+            }
+
+            handleImage.color = new Color(0.35f, 0.35f, 0.38f, 1f);
+            handleImage.raycastTarget = true;
+            Material uiMaterial = ResolveUiNoZTestMaterial();
+            if (uiMaterial != null)
+            {
+                handleImage.material = uiMaterial;
+            }
+
+            bar.handleRect = handleRect;
+            bar.targetGraphic = handleImage;
+            bar.direction = Scrollbar.Direction.BottomToTop;
+            Debug.Log("[MemoryCardDetail] Created missing vertical scrollbar handle.");
+        }
+
+        /// <summary>
+        /// Clip the scroll content with RectMask2D (shader clip-rect, no stencil).
+        /// The stencil-based Mask on Viewport hid all text when combined with the
+        /// no-ZTest / overlay materials used in World Space, so it stays disabled;
+        /// RectMask2D clips (and blocks raycasts of) anything outside the Viewport.
+        /// </summary>
+        private void ConfigureViewportClipping()
         {
             if (contentScrollRect == null)
             {
@@ -610,10 +847,29 @@ namespace EchoSpace.LineOfLife
                 }
             }
 
+            RectTransform viewport = contentScrollRect.viewport;
+            if (viewport == null)
+            {
+                Debug.LogWarning("[MemoryCardDetail] Scroll viewport missing; cannot clip content.");
+                return;
+            }
+
+            RectMask2D rectMask = viewport.GetComponent<RectMask2D>();
+            if (rectMask == null)
+            {
+                rectMask = viewport.gameObject.AddComponent<RectMask2D>();
+            }
+
+            rectMask.enabled = true;
+            rectMask.padding = Vector4.zero;
+            rectMask.softness = Vector2Int.zero;
+
+            // Any other RectMask2D inside the scroll hierarchy (e.g. on the Scroll View root)
+            // would clip against the wrong rect; keep only the Viewport one active.
             RectMask2D[] rectMasks = contentScrollRect.GetComponentsInChildren<RectMask2D>(true);
             for (int i = 0; i < rectMasks.Length; i++)
             {
-                if (rectMasks[i] != null)
+                if (rectMasks[i] != null && rectMasks[i] != rectMask)
                 {
                     rectMasks[i].enabled = false;
                 }

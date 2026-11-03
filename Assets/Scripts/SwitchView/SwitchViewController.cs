@@ -42,10 +42,17 @@ namespace EchoSpace.SwitchView
         [Header("Switch Completed Event")]
         public UnityEvent onSwitchCompleted;
 
+        /// <summary>
+        /// True once the player has started the view switch (stays true for the rest of the session).
+        /// Other systems (e.g. idle next-stage hint) use this to know the flow is past the switch.
+        /// </summary>
+        public static bool HasSwitchedView { get; private set; }
+
         private Coroutine smoothMoveCoroutine;
 
         private void Awake()
         {
+            HasSwitchedView = false;
             RegisterSwitchViewButton();
 
             if (switchViewRoot != null)
@@ -205,6 +212,10 @@ namespace EchoSpace.SwitchView
                 smoothMoveCoroutine = null;
             }
 
+            // Mark as switched as soon as the switch begins (not only when the smooth move ends),
+            // so no idle hint can slip in during the move.
+            HasSwitchedView = true;
+
             UiSfx.PlayPopup();
 
             if (useSmoothMove && smoothMoveDuration > 0f)
@@ -325,6 +336,7 @@ namespace EchoSpace.SwitchView
 
         private void FinishSwitch()
         {
+            HasSwitchedView = true;
             Debug.Log("[SwitchViewController] Switched to target view: " + targetViewTransform.name);
 
             // Always hide large Switch View UI after arriving, to protect immersion.

@@ -8,8 +8,9 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .config import Settings
-from .models import SessionView
+from .models import SessionView, TrashChange
 from .store import ReviewError, SessionStore
+from .trash import TrashOverlay
 
 log = logging.getLogger("memory_review")
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings) -> FastAPI:
     # Docs / OpenAPI are disabled: smaller surface, nothing to browse.
     app = FastAPI(title="EchoSpace Memory Review", docs_url=None, redoc_url=None, openapi_url=None)
     store = SessionStore(settings)
+    trash = TrashOverlay(settings.review_root, store)
 
     # Blocks DNS-rebinding style access (a hostile web page resolving its own name to 127.0.0.1).
     # No CORSMiddleware on purpose: the UI is served from this same origin, so cross-origin
@@ -60,7 +62,15 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/api/sessions/{session_id}", response_model=SessionView)
     def get_session(session_id: str):
-        return store.load_view(session_id)
+        return trash.attach(store.load_view(session_id))
+
+    @app.post("/api/sessions/{session_id}/trash", response_model=SessionView)
+    def move_to_trash(session_id: str, body: TrashChange):
+        return trash.move(session_id, body.kind, body.cardId)
+
+    @app.post("/api/sessions/{session_id}/trash/restore", response_model=SessionView)
+    def restore_from_trash(session_id: str, body: TrashChange):
+        return trash.restore(session_id, body.kind, body.cardId)
 
     @app.get("/api/sessions/{session_id}/cards/{card_id}/screenshot")
     def get_screenshot(session_id: str, card_id: str):

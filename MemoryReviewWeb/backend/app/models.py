@@ -4,9 +4,9 @@
 
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ScreenshotView(BaseModel):
@@ -46,6 +46,18 @@ class CountsView(BaseModel):
     memoryCards: int
     connectionCards: int
     withScreenshot: int
+    trashed: int = 0
+
+
+class TrashItemView(BaseModel):
+    kind: Literal["memory", "connection"]
+    cardId: str
+    deletedAtUtc: str
+
+
+class TrashChange(BaseModel):
+    kind: Literal["memory", "connection"]
+    cardId: str = Field(min_length=1, max_length=64)
 
 
 class IssueView(BaseModel):
@@ -67,4 +79,5 @@ class SessionView(BaseModel):
     memoryCards: List[MemoryCardView]
     temporalClassification: List[ClassificationGroupView]
     connectionCards: List[ConnectionCardView]
+    trash: List[TrashItemView] = []
     issues: List[IssueView]

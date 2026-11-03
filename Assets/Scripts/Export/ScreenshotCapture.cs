@@ -55,6 +55,11 @@ namespace EchoSpace.Export
         [Tooltip("Keep the blue triangle MemoryAnchor markers visible in the screenshot. " +
                  "Untick to hide them (the web can still draw a marker from markerViewport).")]
         [SerializeField] private bool showMemoryAnchorMarkers = true;
+        [Tooltip("Paint the marker that belongs to THIS card in a highlight colour (default yellow) so it can be told " +
+                 "apart from the other blue markers in the same shot. Other cards' markers stay blue. " +
+                 "Only applies to card screenshots, not to manual test images.")]
+        [SerializeField] private bool highlightCurrentMarker = true;
+        [SerializeField] private Color currentMarkerColor = new Color(1f, 0.92f, 0.2f, 1f);
         [Tooltip("Hide controller models and ray / line visuals (XRBaseController, XRBaseInteractor).")]
         [SerializeField] private bool hideXrControllerVisuals = true;
         [Tooltip("Disable every active Canvas (annotation panel, reflection UI, guides, tutorial hints).")]
@@ -100,6 +105,11 @@ namespace EchoSpace.Export
         private readonly HashSet<string> _inFlight = new HashSet<string>();
         private readonly List<Renderer> _hiddenRenderers = new List<Renderer>();
         private readonly List<Canvas> _hiddenCanvases = new List<Canvas>();
+
+        // Marker highlight (applied and undone inside the same frame, around Camera.Render).
+        private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
+        private Renderer _highlightRenderer;
+        private MaterialPropertyBlock _highlightPreviousBlock;
 
         private Camera _cam;
         private MemoryAnchorManager _boundAnchorManager;
@@ -344,7 +354,7 @@ namespace EchoSpace.Export
 
             ConfigureCamera(job, src);
 
-            HideForCapture();
+            HideForCapture(job.cardId);
             try
             {
                 _cam.Render();
@@ -576,10 +586,12 @@ namespace EchoSpace.Export
             _cam.transform.SetPositionAndRotation(job.cameraPosition, job.cameraRotation);
         }
 
-        private void HideForCapture()
+        private void HideForCapture(string cardId)
         {
             _hiddenRenderers.Clear();
             _hiddenCanvases.Clear();
+            _highlightRenderer = null;
+            _highlightPreviousBlock = null;
 
             if (!showMemoryAnchorMarkers)
             {
@@ -587,6 +599,10 @@ namespace EchoSpace.Export
                 {
                     HideRenderersUnder(anchor.gameObject);
                 }
+            }
+            else if (highlightCurrentMarker && !string.IsNullOrEmpty(cardId))
+            {
+                HighlightMarker(cardId);
             }
 
             if (hideXrControllerVisuals)
@@ -626,6 +642,38 @@ namespace EchoSpace.Export
             }
         }
 
+        /// <summary>
+        /// Temporarily tints the marker whose MemoryAnchorData.id == cardId. Uses a MaterialPropertyBlock
+        /// (the same mechanism as MemoryAnchor's hover colour), so the shared material / prefab are untouched.
+        /// The previous block (e.g. an active hover colour) is kept and put back by RestoreAfterCapture.
+        /// </summary>
+        private void HighlightMarker(string cardId)
+        {
+            foreach (MemoryAnchor anchor in FindObjectsOfType<MemoryAnchor>())
+            {
+                if (anchor == null || anchor.Data == null || anchor.Data.id != cardId)
+                {
+                    continue;
+                }
+
+                Renderer r = anchor.GetComponent<Renderer>(); // MemoryAnchor tints this same renderer on hover
+                if (r == null || !r.enabled)
+                {
+                    return;
+                }
+
+                _highlightPreviousBlock = new MaterialPropertyBlock();
+                r.GetPropertyBlock(_highlightPreviousBlock);
+
+                var block = new MaterialPropertyBlock();
+                r.GetPropertyBlock(block);
+                block.SetColor(ColorPropertyId, currentMarkerColor);
+                r.SetPropertyBlock(block);
+                _highlightRenderer = r;
+                return;
+            }
+        }
+
         private void HideRenderersUnder(GameObject root)
         {
             foreach (Renderer r in root.GetComponentsInChildren<Renderer>(false))
@@ -640,6 +688,14 @@ namespace EchoSpace.Export
 
         private void RestoreAfterCapture()
         {
+            if (_highlightRenderer != null)
+            {
+                _highlightRenderer.SetPropertyBlock(_highlightPreviousBlock);
+            }
+
+            _highlightRenderer = null;
+            _highlightPreviousBlock = null;
+
             for (int i = 0; i < _hiddenRenderers.Count; i++)
             {
                 if (_hiddenRenderers[i] != null)

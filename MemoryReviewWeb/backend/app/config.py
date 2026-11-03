@@ -40,6 +40,11 @@ class Settings:
     def research_root(self) -> Path:
         return self.data_root / "research"
 
+    @property
+    def review_root(self) -> Path:
+        # Overlay only (trash). Never mix with Unity's research/session.json.
+        return self.data_root / "review"
+
 
 def unity_default_data_root() -> Optional[Path]:
     """Unity's fallback: Application.persistentDataPath/EchoSpaceData (Windows only here)."""

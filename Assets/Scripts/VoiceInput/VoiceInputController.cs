@@ -1,4 +1,6 @@
 using System.Collections;
+using System.Collections.Generic;
+using System.Text;
 using EchoSpace.UI;
 using TMPro;
 using UnityEngine;
@@ -13,7 +15,19 @@ namespace EchoSpace.VoiceInput
         [SerializeField] Button micButton;
         [SerializeField] TMP_Text micButtonText;
         [SerializeField] TMP_InputField targetInputField;
-        [SerializeField] int maxRecordSeconds = 30;
+        [Tooltip("Maximum length of a single recording session (seconds). Recording auto-stops at this limit.")]
+        [SerializeField] float maxTotalRecordSeconds = 180f;
+        [Tooltip("Target length of each chunk sent to STT while recording continues (seconds).")]
+        [SerializeField] float chunkSeconds = 25f;
+        [Tooltip("Chunk boundary is moved to the quietest spot within this window before the target length (seconds).")]
+        [SerializeField] float chunkCutSearchSeconds = 2f;
+        [Tooltip("Show the remaining-time hint when this many seconds are left.")]
+        [SerializeField] float remainingWarningSeconds = 20f;
+        [SerializeField] string remainingWarningText = "剩餘 20 秒，可以慢慢做個總結。";
+        [Tooltip("Per-chunk HTTP timeout (seconds).")]
+        [SerializeField] int requestTimeoutSeconds = 60;
+        [Tooltip("Extra attempts for a chunk whose request failed.")]
+        [SerializeField] int chunkRetryCount = 1;
         [SerializeField] int sampleRate = 16000;
         [SerializeField] string microphoneDevice = null;
         [SerializeField] string transcribeUrl = "http://127.0.0.1:8000/transcribe";
@@ -36,9 +50,31 @@ namespace EchoSpace.VoiceInput
         public event System.Action<string> TranscriptReceived;
         public string LastTranscript { get; private set; }
 
+        private const int RingBufferSeconds = 60;
+
+        private sealed class ChunkResult
+        {
+            public bool Done;
+            public bool Ok;
+            public string Text;
+        }
+
         private AudioClip recordingClip;
         private bool isRecording;
         private bool isTranscribing;
+
+        // Chunked recording state
+        private int _ringFrames;
+        private int _channels = 1;
+        private int _actualRate = 16000;
+        private int _lastReadFrame;
+        private long _totalFrames;
+        private bool _warningShown;
+        private bool _stopRequested;
+        private int _pendingChunks;
+        private int _sessionId;
+        private readonly List<float> _chunkBuffer = new List<float>();
+        private readonly List<ChunkResult> _chunkResults = new List<ChunkResult>();
         private bool _useIconVisual;
         private bool _skipShowingTranscript;
         private bool _cachedHitBoxColors;
@@ -83,7 +119,24 @@ namespace EchoSpace.VoiceInput
             }
         }
 
-        public void ResetToIdle()
+        private void OnDisable()
+        {
+            // Coroutines die with the object; drop any in-flight session so the state cannot get stuck.
+            if (isRecording || isTranscribing)
+            {
+                CancelSession();
+            }
+        }
+
+        private void Update()
+        {
+            if (isRecording)
+            {
+                PollRecording();
+            }
+        }
+
+        private void CancelSession()
         {
             if (isRecording)
             {
@@ -91,7 +144,21 @@ namespace EchoSpace.VoiceInput
                 isRecording = false;
             }
 
+            _sessionId++;
+            _stopRequested = false;
+            _pendingChunks = 0;
+            _warningShown = false;
+            _totalFrames = 0;
+            _lastReadFrame = 0;
+            _chunkBuffer.Clear();
+            _chunkResults.Clear();
+            recordingClip = null;
             isTranscribing = false;
+        }
+
+        public void ResetToIdle()
+        {
+            CancelSession();
             ResolveMicVisuals();
             SetIdleVisual();
             SetButtonText(GetIdleButtonText());
@@ -121,11 +188,7 @@ namespace EchoSpace.VoiceInput
                 micButton.onClick.RemoveListener(OnMicButtonClicked);
             }
 
-            if (isRecording)
-            {
-                Microphone.End(microphoneDevice);
-                isRecording = false;
-            }
+            CancelSession();
         }
 
         private void OnMicButtonClicked()
@@ -161,11 +224,182 @@ namespace EchoSpace.VoiceInput
                 microphoneDevice = Microphone.devices[0];
             }
 
-            Debug.Log(LogPrefix() + " Recording started on device: " + microphoneDevice);
-            recordingClip = Microphone.Start(microphoneDevice, false, maxRecordSeconds, sampleRate);
+            // Fresh session (also invalidates results of any older in-flight requests).
+            CancelSession();
+
+            Debug.Log(LogPrefix() + " Recording started on device: " + microphoneDevice
+                + " (chunked, max " + maxTotalRecordSeconds + "s, chunk ~" + chunkSeconds + "s)");
+
+            // Ring buffer (loop=true) so recording never silently stops; we drain it every frame.
+            recordingClip = Microphone.Start(microphoneDevice, true, RingBufferSeconds, sampleRate);
+            if (recordingClip == null)
+            {
+                Debug.LogError(LogPrefix() + " Microphone.Start returned null.");
+                SetIdleVisual();
+                SetButtonText("再試一次");
+                return;
+            }
+
+            _ringFrames = Mathf.Max(1, recordingClip.samples);
+            _channels = Mathf.Max(1, recordingClip.channels);
+            _actualRate = Mathf.Max(1, recordingClip.frequency);
+            _lastReadFrame = 0;
+            _totalFrames = 0;
+            _warningShown = false;
+            _stopRequested = false;
+            _chunkBuffer.Clear();
+            _chunkResults.Clear();
+
             isRecording = true;
             SetRecordingVisual();
             SetButtonText("錄音中…");
+        }
+
+        // ---- Chunked recording ------------------------------------------------
+
+        private void PollRecording()
+        {
+            if (!Microphone.IsRecording(microphoneDevice))
+            {
+                Debug.LogWarning(LogPrefix() + " Microphone stopped unexpectedly; finishing recording.");
+                StopRecordingAndTranscribe();
+                return;
+            }
+
+            ReadAvailableSamples();
+            FlushFullChunks();
+
+            float elapsed = (float)_totalFrames / _actualRate;
+            float limit = Mathf.Max(5f, maxTotalRecordSeconds);
+
+            if (!_warningShown
+                && remainingWarningSeconds > 0f
+                && limit - elapsed <= remainingWarningSeconds)
+            {
+                _warningShown = true;
+                SetButtonText(remainingWarningText);
+            }
+
+            if (elapsed >= limit)
+            {
+                Debug.Log(LogPrefix() + " Reached max recording length (" + limit + "s); auto stop.");
+                StopRecordingAndTranscribe();
+            }
+        }
+
+        private void ReadAvailableSamples()
+        {
+            if (recordingClip == null || _ringFrames <= 0)
+            {
+                return;
+            }
+
+            int pos = Microphone.GetPosition(microphoneDevice);
+            if (pos < 0)
+            {
+                return;
+            }
+
+            pos %= _ringFrames;
+            if (pos == _lastReadFrame)
+            {
+                return;
+            }
+
+            int frames = pos > _lastReadFrame
+                ? pos - _lastReadFrame
+                : _ringFrames - _lastReadFrame + pos;
+            if (frames <= 0)
+            {
+                return;
+            }
+
+            int firstFrames = Mathf.Min(frames, _ringFrames - _lastReadFrame);
+            float[] first = new float[firstFrames * _channels];
+            recordingClip.GetData(first, _lastReadFrame);
+            _chunkBuffer.AddRange(first);
+
+            int secondFrames = frames - firstFrames;
+            if (secondFrames > 0)
+            {
+                float[] second = new float[secondFrames * _channels];
+                recordingClip.GetData(second, 0);
+                _chunkBuffer.AddRange(second);
+            }
+
+            _lastReadFrame = pos;
+            _totalFrames += frames;
+        }
+
+        private void FlushFullChunks()
+        {
+            float target = Mathf.Clamp(chunkSeconds, 5f, 40f);
+            float search = Mathf.Clamp(chunkCutSearchSeconds, 0f, target * 0.5f);
+            int triggerFrames = Mathf.RoundToInt(target * _actualRate);
+            int searchFrames = Mathf.RoundToInt(search * _actualRate);
+            int bufferFrames = _chunkBuffer.Count / _channels;
+
+            // Wait until the buffer is a bit longer than the target, then cut at the quietest spot
+            // inside [target - search, target + search] so words are rarely split.
+            while (bufferFrames >= triggerFrames + searchFrames)
+            {
+                int cutFrame = FindQuietCutFrame(triggerFrames - searchFrames, triggerFrames + searchFrames);
+                SendBufferedFrames(cutFrame);
+                bufferFrames = _chunkBuffer.Count / _channels;
+            }
+        }
+
+        private int FindQuietCutFrame(int fromFrame, int toFrame)
+        {
+            int window = Mathf.Max(1, _actualRate / 20); // 50 ms
+            int maxStart = toFrame - window;
+            if (maxStart <= fromFrame)
+            {
+                return Mathf.Max(1, toFrame);
+            }
+
+            float bestEnergy = float.MaxValue;
+            int bestStart = fromFrame;
+            for (int start = fromFrame; start <= maxStart; start += window)
+            {
+                float energy = 0f;
+                for (int i = 0; i < window; i++)
+                {
+                    int idx = (start + i) * _channels;
+                    float s = _chunkBuffer[idx];
+                    energy += s * s;
+                }
+
+                if (energy < bestEnergy)
+                {
+                    bestEnergy = energy;
+                    bestStart = start;
+                }
+            }
+
+            return bestStart + window / 2;
+        }
+
+        private void SendBufferedFrames(int frames)
+        {
+            frames = Mathf.Clamp(frames, 1, _chunkBuffer.Count / _channels);
+            int floatCount = frames * _channels;
+            float[] samples = _chunkBuffer.GetRange(0, floatCount).ToArray();
+            _chunkBuffer.RemoveRange(0, floatCount);
+
+            byte[] wavBytes = WavUtility.FromSamples(samples, _channels, _actualRate);
+            if (wavBytes == null || wavBytes.Length == 0)
+            {
+                Debug.LogError(LogPrefix() + " Failed to convert chunk to WAV.");
+                return;
+            }
+
+            int index = _chunkResults.Count;
+            _chunkResults.Add(new ChunkResult());
+            _pendingChunks++;
+            Debug.Log(LogPrefix() + " Chunk #" + index + " queued: " + wavBytes.Length + " bytes, "
+                + (frames / (float)_actualRate).ToString("F1") + "s");
+            StartCoroutine(PostChunkToStt(_sessionId, index, wavBytes));
         }
 
         private void StopRecordingAndTranscribe()
@@ -175,11 +409,22 @@ namespace EchoSpace.VoiceInput
                 return;
             }
 
-            int position = Microphone.GetPosition(microphoneDevice);
+            ReadAvailableSamples();
             Microphone.End(microphoneDevice);
             isRecording = false;
+            recordingClip = null;
 
-            if (recordingClip == null || position <= 0)
+            int remainingFrames = _chunkBuffer.Count / _channels;
+            float remainingSeconds = remainingFrames / (float)_actualRate;
+            float minSeconds = _chunkResults.Count > 0 ? 0.4f : 0.2f;
+            if (remainingFrames > 0 && remainingSeconds >= minSeconds)
+            {
+                SendBufferedFrames(remainingFrames);
+            }
+
+            _chunkBuffer.Clear();
+
+            if (_chunkResults.Count == 0)
             {
                 Debug.LogError(LogPrefix() + " Recording failed or empty.");
                 SetIdleVisual();
@@ -187,100 +432,150 @@ namespace EchoSpace.VoiceInput
                 return;
             }
 
-            AudioClip trimmed = TrimClip(recordingClip, position);
-            recordingClip = null;
+            Debug.Log(LogPrefix() + " Recording stopped. total=" + ((float)_totalFrames / _actualRate).ToString("F1")
+                + "s, chunks=" + _chunkResults.Count + ", pending=" + _pendingChunks);
 
-            byte[] wavBytes = WavUtility.FromAudioClip(trimmed);
-            if (wavBytes == null || wavBytes.Length == 0)
-            {
-                Debug.LogError(LogPrefix() + " Failed to convert AudioClip to WAV.");
-                SetIdleVisual();
-                SetButtonText("再試一次");
-                return;
-            }
-
-            Debug.Log(LogPrefix() + " WAV size: " + wavBytes.Length + " bytes, samples: " + position);
-            StartCoroutine(PostWavToStt(wavBytes));
-        }
-
-        private AudioClip TrimClip(AudioClip source, int samplePosition)
-        {
-            int channels = source.channels;
-            int samples = Mathf.Clamp(samplePosition, 1, source.samples);
-            float[] data = new float[samples * channels];
-            source.GetData(data, 0);
-
-            AudioClip trimmed = AudioClip.Create(
-                "VoiceInputTrimmed",
-                samples,
-                channels,
-                source.frequency,
-                false);
-            trimmed.SetData(data, 0);
-            return trimmed;
-        }
-
-        private IEnumerator PostWavToStt(byte[] wavBytes)
-        {
+            _stopRequested = true;
             isTranscribing = true;
             SetTranscribingVisual();
             SetButtonText("辨識中…");
+            TryFinalizeTranscription();
+        }
 
-            WWWForm form = new WWWForm();
-            form.AddBinaryData("file", wavBytes, "recording.wav", "audio/wav");
+        private IEnumerator PostChunkToStt(int session, int index, byte[] wavBytes)
+        {
+            int attempts = 1 + Mathf.Max(0, chunkRetryCount);
+            bool ok = false;
+            string text = string.Empty;
 
-            using (UnityWebRequest request = UnityWebRequest.Post(transcribeUrl, form))
+            for (int attempt = 0; attempt < attempts && !ok; attempt++)
             {
-                request.timeout = 60;
-                Debug.Log(LogPrefix() + " POST " + transcribeUrl);
-                yield return request.SendWebRequest();
+                WWWForm form = new WWWForm();
+                form.AddBinaryData("file", wavBytes, "recording.wav", "audio/wav");
+
+                using (UnityWebRequest request = UnityWebRequest.Post(transcribeUrl, form))
+                {
+                    request.timeout = Mathf.Max(5, requestTimeoutSeconds);
+                    Debug.Log(LogPrefix() + " POST chunk #" + index + " (attempt " + (attempt + 1) + ") " + transcribeUrl);
+                    yield return request.SendWebRequest();
+
+                    if (session != _sessionId)
+                    {
+                        yield break;
+                    }
 
 #if UNITY_2020_2_OR_NEWER
-                bool failed = request.result != UnityWebRequest.Result.Success;
+                    bool failed = request.result != UnityWebRequest.Result.Success;
 #else
-                bool failed = request.isNetworkError || request.isHttpError;
+                    bool failed = request.isNetworkError || request.isHttpError;
 #endif
-                if (failed)
-                {
-                    Debug.LogError(LogPrefix() + " STT request failed: " + request.error + " (" + request.responseCode + ")");
-                    SetIdleVisual();
-                    SetButtonText("再試一次");
-                    isTranscribing = false;
-                    yield break;
-                }
+                    if (failed)
+                    {
+                        Debug.LogError(LogPrefix() + " STT request failed (chunk #" + index + "): "
+                            + request.error + " (" + request.responseCode + ")");
+                        continue;
+                    }
 
-                string json = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
-                Debug.Log(LogPrefix() + " STT raw response: " + json);
+                    string json = request.downloadHandler != null ? request.downloadHandler.text : string.Empty;
+                    Debug.Log(LogPrefix() + " STT raw response (chunk #" + index + "): " + json);
 
-                SttResponse response = null;
-                try
-                {
-                    response = JsonUtility.FromJson<SttResponse>(json);
+                    try
+                    {
+                        SttResponse response = JsonUtility.FromJson<SttResponse>(json);
+                        text = response != null && response.text != null ? response.text.Trim() : string.Empty;
+                        ok = true;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        Debug.LogError(LogPrefix() + " Failed to parse STT JSON (chunk #" + index + "): " + ex.Message);
+                    }
                 }
-                catch (System.Exception ex)
-                {
-                    Debug.LogError(LogPrefix() + " Failed to parse STT JSON: " + ex.Message);
-                    SetIdleVisual();
-                    SetButtonText("再試一次");
-                    isTranscribing = false;
-                    yield break;
-                }
-
-                if (response == null || string.IsNullOrWhiteSpace(response.text))
-                {
-                    Debug.LogWarning(LogPrefix() + " STT returned empty text.");
-                    SetIdleVisual();
-                    SetButtonText("再試一次");
-                    isTranscribing = false;
-                    yield break;
-                }
-
-                string transcript = response.text.Trim();
-                SetRecordingCompleteVisual();
-                HandleTranscriptResult(transcript);
             }
 
+            if (session != _sessionId || index >= _chunkResults.Count)
+            {
+                yield break;
+            }
+
+            ChunkResult result = _chunkResults[index];
+            result.Done = true;
+            result.Ok = ok;
+            result.Text = text;
+            _pendingChunks = Mathf.Max(0, _pendingChunks - 1);
+            TryFinalizeTranscription();
+        }
+
+        private void TryFinalizeTranscription()
+        {
+            if (!_stopRequested || _pendingChunks > 0)
+            {
+                return;
+            }
+
+            _stopRequested = false;
+
+            StringBuilder joined = new StringBuilder();
+            int failedCount = 0;
+            for (int i = 0; i < _chunkResults.Count; i++)
+            {
+                ChunkResult r = _chunkResults[i];
+                if (!r.Ok)
+                {
+                    failedCount++;
+                    continue;
+                }
+
+                AppendJoined(joined, r.Text);
+            }
+
+            int total = _chunkResults.Count;
+            _chunkResults.Clear();
+
+            string transcript = joined.ToString().Trim();
+            if (failedCount > 0)
+            {
+                Debug.LogWarning(LogPrefix() + " " + failedCount + "/" + total + " chunk(s) failed; using the rest.");
+            }
+
+            if (string.IsNullOrWhiteSpace(transcript))
+            {
+                Debug.LogWarning(LogPrefix() + " STT returned empty text (chunks=" + total + ", failed=" + failedCount + ").");
+                SetIdleVisual();
+                SetButtonText("再試一次");
+                isTranscribing = false;
+                return;
+            }
+
+            SetRecordingCompleteVisual();
+            HandleTranscriptResult(transcript);
             isTranscribing = false;
+        }
+
+        private static void AppendJoined(StringBuilder sb, string part)
+        {
+            if (string.IsNullOrWhiteSpace(part))
+            {
+                return;
+            }
+
+            part = part.Trim();
+            if (sb.Length > 0)
+            {
+                char last = sb[sb.Length - 1];
+                char first = part[0];
+                bool needSpace = IsAsciiWordChar(last) && IsAsciiWordChar(first);
+                if (needSpace || (!char.IsWhiteSpace(last) && char.IsPunctuation(last) && last < 128 && first < 128))
+                {
+                    sb.Append(' ');
+                }
+            }
+
+            sb.Append(part);
+        }
+
+        private static bool IsAsciiWordChar(char c)
+        {
+            return c < 128 && char.IsLetterOrDigit(c);
         }
 
         public void SetSkipShowingTranscript(bool skip)
