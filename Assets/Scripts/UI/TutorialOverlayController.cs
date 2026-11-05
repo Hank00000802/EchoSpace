@@ -55,6 +55,15 @@ namespace EchoSpace.UI
         [SerializeField] private string explorationModeLabel = "目前是探索模式";
         [SerializeField] private string tutorialModeLabel = "目前是教學模式";
 
+        [Header("Familiar Environment Timer")]
+        [Tooltip("Starts when the VR intro finishes and the familiar room appears.")]
+        [SerializeField] private bool enableFamiliarEnvironmentTimer = true;
+        [SerializeField] private float familiarEnvironmentSeconds = 540f;
+        [SerializeField] private float familiarEnvironmentPromptDuration = 12f;
+        [TextArea(3, 6)]
+        [SerializeField] private string familiarEnvironmentPromptText =
+            "現在可以再標記最後一個記憶，標記後可開啟時間整理面板，開始整理記憶";
+
         [Header("Idle Next Stage Hint")]
         [SerializeField] private bool enableIdleNextStageHint = true;
         [SerializeField] private float idleNextStageHintSeconds = 30f;
@@ -92,6 +101,9 @@ namespace EchoSpace.UI
         private string _overrideSwitchModeGuideText;
         private float _overrideSwitchModeGuideDuration;
         private float _idleNoAnnotationSeconds;
+        private float _familiarEnvironmentElapsed;
+        private bool _familiarEnvironmentPromptShown;
+        private bool _familiarEnvironmentPromptPending;
         private readonly List<XRInputDevice> _devices = new List<XRInputDevice>();
 
         private void Awake()
@@ -144,9 +156,31 @@ namespace EchoSpace.UI
         {
             UpdateIdleRightAHintState();
 
-            if (VRIntroGuideController.IsIntroActive)
+            bool introActive = VRIntroGuideController.IsIntroActive;
+            bool annotationOpen = IsAnnotationPanelCurrentlyOpen();
+            if (introActive || annotationOpen)
             {
-                _idleNoAnnotationSeconds = 0f;
+                // Intro / annotation panel: hide the floating hint, reset both timers,
+                // and do not count until the panel is confirmed closed (or intro ends).
+                SuppressTimedHints();
+                if (introActive)
+                {
+                    return;
+                }
+
+                if (Input.GetKeyDown(toggleKey))
+                {
+                    Toggle();
+                }
+
+                CheckVRGripToggle();
+                // Consume the Left-X edge so releasing it after Close does not pop the hint.
+                WasPressedThisFrame(IsLeftXPressed(), ref _modeGuideLeftXWasPressed);
+                if (IsTutorialModeActive)
+                {
+                    CheckTutorialHintInputs();
+                }
+
                 return;
             }
 
@@ -157,11 +191,34 @@ namespace EchoSpace.UI
 
             CheckVRGripToggle();
             CheckSwitchModeGuideInput();
+            UpdateFamiliarEnvironmentTimer();
             UpdateIdleNextStageHint();
 
             if (IsTutorialModeActive)
             {
                 CheckTutorialHintInputs();
+            }
+        }
+
+        private bool IsAnnotationPanelCurrentlyOpen()
+        {
+            if (_annotationPanel == null)
+            {
+                _annotationPanel = FindObjectOfType<AnnotationPanelController>();
+            }
+
+            return _annotationPanel != null && _annotationPanel.IsOpen;
+        }
+
+        private void SuppressTimedHints()
+        {
+            _idleNoAnnotationSeconds = 0f;
+            _familiarEnvironmentElapsed = 0f;
+            _familiarEnvironmentPromptPending = false;
+            HideIdleRightAHint();
+            if (_switchModeGuideVisible || _showSwitchModeGuideThisFrame)
+            {
+                HideSwitchModeGuide(false);
             }
         }
 
@@ -238,9 +295,120 @@ namespace EchoSpace.UI
             ShowIdleRightAHint();
         }
 
+        private void UpdateFamiliarEnvironmentTimer()
+        {
+            if (_familiarEnvironmentPromptPending)
+            {
+                TryShowFamiliarEnvironmentPrompt();
+                return;
+            }
+
+            if (!enableFamiliarEnvironmentTimer || _familiarEnvironmentPromptShown)
+            {
+                return;
+            }
+
+            if (!VRIntroGuideController.HasFinishedIntro
+                || VRIntroGuideController.IsIntroActive
+                || IsAnnotationPanelCurrentlyOpen())
+            {
+                return;
+            }
+
+            if (HasLeftMarkingStage())
+            {
+                _familiarEnvironmentPromptShown = true;
+                return;
+            }
+
+            _familiarEnvironmentElapsed += Time.unscaledDeltaTime;
+            float waitSeconds = familiarEnvironmentSeconds > 0f ? familiarEnvironmentSeconds : 540f;
+            if (_familiarEnvironmentElapsed < waitSeconds)
+            {
+                return;
+            }
+
+            _familiarEnvironmentPromptPending = true;
+            TryShowFamiliarEnvironmentPrompt();
+        }
+
+        private void TryShowFamiliarEnvironmentPrompt()
+        {
+            if (_familiarEnvironmentPromptShown)
+            {
+                _familiarEnvironmentPromptPending = false;
+                return;
+            }
+
+            if (HasLeftMarkingStage())
+            {
+                _familiarEnvironmentPromptShown = true;
+                _familiarEnvironmentPromptPending = false;
+                return;
+            }
+
+            if (IsAnyTutorialActive() || VRIntroGuideController.IsIntroActive)
+            {
+                return;
+            }
+
+            if (_annotationPanel == null)
+            {
+                _annotationPanel = FindObjectOfType<AnnotationPanelController>();
+            }
+
+            if (_annotationPanel != null && _annotationPanel.IsOpen)
+            {
+                return;
+            }
+
+            _familiarEnvironmentPromptShown = true;
+            _familiarEnvironmentPromptPending = false;
+            string message = string.IsNullOrEmpty(familiarEnvironmentPromptText)
+                ? "現在可以再標記最後一個記憶，標記後可開啟時間整理面板，開始整理記憶"
+                : familiarEnvironmentPromptText;
+            float duration = familiarEnvironmentPromptDuration > 0f ? familiarEnvironmentPromptDuration : 12f;
+            ShowSwitchModeGuideMessage(message, duration);
+            Debug.Log("[StartupFlow] Familiar-environment timer prompt shown after "
+                + _familiarEnvironmentElapsed.ToString("0.0")
+                + "s");
+        }
+
+        private bool HasLeftMarkingStage()
+        {
+            if (SwitchViewController.HasSwitchedView)
+            {
+                return true;
+            }
+
+            if (_lineOfLifeManager == null)
+            {
+                _lineOfLifeManager = FindObjectOfType<LineOfLifeManager>();
+            }
+
+            if (_lineOfLifeManager != null && _lineOfLifeManager.IsOpen)
+            {
+                return true;
+            }
+
+            if (_lineOfLife3D == null)
+            {
+                _lineOfLife3D = FindObjectOfType<LineOfLife3DViewController>();
+            }
+
+            return _lineOfLife3D != null && _lineOfLife3D.IsVisible;
+        }
+
         private bool CanTrackIdleNextStageHint()
         {
             if (!enableIdleNextStageHint || IsAnyTutorialActive())
+            {
+                return false;
+            }
+
+            // Wait until the 9-minute familiar-environment prompt has fired,
+            // so idle hints do not ask people to open Line of Life too early.
+            if (enableFamiliarEnvironmentTimer && !_familiarEnvironmentPromptShown)
             {
                 return false;
             }

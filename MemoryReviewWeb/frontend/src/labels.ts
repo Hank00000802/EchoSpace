@@ -49,9 +49,9 @@ const ERROR_TEXT = new Map<string, string>([
   ["network", "無法連線到本地伺服器，請確認後端已啟動。"],
   ["card_not_available", "找不到這張卡片。"],
   ["invalid_card_id", "卡片 ID 不正確。"],
-  ["trash_write_failed", "無法寫入垃圾桶，請檢查資料夾權限。"],
-  ["trash_unreadable", "垃圾桶資料無法讀取。"],
-  ["trash_full", "垃圾桶已滿。"],
+  ["trash_write_failed", "無法寫入刪除區，請檢查資料夾權限。"],
+  ["trash_unreadable", "刪除區資料無法讀取。"],
+  ["trash_full", "刪除區已滿。"],
 ]);
 
 export function errorText(code: string): string {

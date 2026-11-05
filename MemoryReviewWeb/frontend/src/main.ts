@@ -24,7 +24,7 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: "gallery", label: "記憶圖庫" },
   { id: "classification", label: "時間分類" },
   { id: "connections", label: "連結卡片" },
-  { id: "trash", label: "垃圾桶" },
+  { id: "trash", label: "刪除區" },
 ];
 
 // The current session lives only in memory (no localStorage / cookies): closing the tab forgets it.
@@ -68,7 +68,7 @@ app.append(
     "header",
     { class: "top" },
     h("h1", { text: "EchoSpace 記憶回顧" }),
-    h("p", { class: "muted", text: "本機回顧。刪除會移到垃圾桶，不會改到原始研究資料。" }),
+    h("p", { class: "muted", text: "本機回顧。" }),
     form,
   ),
   createGuidePrompt(),
@@ -116,9 +116,9 @@ function applySession(data: SessionView): void {
 
 function requestDelete(kind: TrashItemView["kind"], cardId: string, label: string): void {
   confirmAction(
-    "移到垃圾桶？",
-    label + "會從回顧畫面隱藏，之後可以從垃圾桶還原。原始研究資料不會被刪除。",
-    "移到垃圾桶",
+    "移到刪除區？",
+    label + "會從回顧畫面隱藏，之後可以從刪除區還原。原始研究資料不會被刪除。",
+    "移到刪除區",
     () => {
       void trash(kind, cardId);
     },
@@ -131,7 +131,7 @@ async function trash(kind: TrashItemView["kind"], cardId: string): Promise<void>
   try {
     const data = await moveToTrash(current.session.sessionId, kind, cardId);
     applySession(data);
-    showUndoToast("已移到垃圾桶。", () => {
+    showUndoToast("已移到刪除區。", () => {
       void restore(kind, cardId);
     });
   } catch (error) {
@@ -201,12 +201,12 @@ function renderPanel(): void {
 function renderSummary(): void {
   clear(summaryBox);
   if (!current) return;
-  const { session, counts } = current;
+  const { session } = current;
   summaryBox.append(
-    h("span", { text: "記憶卡 " + visibleMemory(current).length }),
+    /*h("span", { text: "記憶卡 " + visibleMemory(current).length }),
     h("span", { text: "截圖 " + counts.withScreenshot }),
     h("span", { text: "連結卡片 " + visibleConnections(current).length }),
-    h("span", { text: "垃圾桶 " + counts.trashed }),
+    h("span", { text: "刪除區 " + counts.trashed }),*/
     h("span", { class: "muted", text: "匯出時間 " + formatTime(session.exportedAtUtc) }),
   );
 }

@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 33b71fae31e6c7d438e8566dc713e666, type: 3}
+  m_Name: pilot_room02_01
+  m_EditorClassIdentifier: 
+  m_FormatVersion: 20231020
+  m_SplatCount: 1608604
+  m_BoundsMin: {x: -98.58501, y: -49.49673, z: -67.08099}
+  m_BoundsMax: {x: 87.78884, y: 79.738045, z: 83.59135}
+  m_DataHash:
+    serializedVersion: 2
+    Hash: 0281fb0803c793d5ea3dd20342642dea
+  m_PosFormat: 0
+  m_ScaleFormat: 0
+  m_SHFormat: 0
+  m_ColorFormat: 0
+  m_PosData: {fileID: 4900000, guid: 9211bc0e770a81244a0ac80d459f4cb7, type: 3}
+  m_ColorData: {fileID: 4900000, guid: 15fcc1c6cd9f72f469148135cc3f820b, type: 3}
+  m_OtherData: {fileID: 4900000, guid: 27701c74fdcf8cb4d9020da3b5dbb8c0, type: 3}
+  m_SHData: {fileID: 4900000, guid: deb85dbc501cb8f4eb8e60c13970db4b, type: 3}
+  m_ChunkData: {fileID: 0}
+  m_Cameras: []

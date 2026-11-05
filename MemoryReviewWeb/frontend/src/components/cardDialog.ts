@@ -49,7 +49,7 @@ export function openCardDialog(
     onRestore
       ? h("button", {
           class: "btn",
-          text: "從垃圾桶還原",
+          text: "從刪除區還原",
           attrs: { type: "button" },
           on: {
             click: () => {

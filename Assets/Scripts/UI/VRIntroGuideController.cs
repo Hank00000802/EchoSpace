@@ -26,6 +26,12 @@ namespace EchoSpace.UI
         /// </summary>
         public static bool IsIntroActive { get; private set; }
 
+        /// <summary>
+        /// True after the black-sphere intro has finished and the familiar room is shown.
+        /// Used to start the 9-minute exploration timer.
+        /// </summary>
+        public static bool HasFinishedIntro { get; private set; }
+
         [SerializeField] private GameObject introRoot;
         [SerializeField] private CanvasGroup canvasGroup;
         [Tooltip("Legacy flat black panel. Leave unused when useBlackSphereIntro is on.")]
@@ -102,6 +108,7 @@ namespace EchoSpace.UI
         private void Awake()
         {
             IsIntroActive = false;
+            HasFinishedIntro = false;
 
             if (introRoot == null)
             {
@@ -137,6 +144,8 @@ namespace EchoSpace.UI
             {
                 IsIntroActive = false;
             }
+
+            HasFinishedIntro = false;
 
             if (_sphereMaterialInstance != null)
             {
@@ -238,6 +247,7 @@ namespace EchoSpace.UI
 
             _finished = true;
             _isPlaying = false;
+            HasFinishedIntro = true;
 
             if (_playRoutine != null)
             {

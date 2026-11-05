@@ -809,7 +809,9 @@ namespace EchoSpace.Reflection
             }
 
             subtitleRoot.SetActive(true);
-            HidePromptAndShowOpenButton();
+            BindAfterSwitchPromptToggleButtons();
+            SetAfterSwitchPromptVisible(true);
+            BringAfterSwitchViewToFront();
         }
 
         private void HidePromptAndShowOpenButton()

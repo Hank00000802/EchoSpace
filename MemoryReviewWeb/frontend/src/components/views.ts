@@ -36,7 +36,7 @@ export function createConnectionArticle(
 ): HTMLElement {
   const sourceBlock = source && !sourceTrashed
     ? createSourceReference(source, actions.openMemory)
-    : h("p", { class: "warn", text: sourceTrashed ? "來源記憶卡已移到垃圾桶。" : "找不到來源記憶卡（資料不完整）。" });
+    : h("p", { class: "warn", text: sourceTrashed ? "來源記憶卡已移到刪除區。" : "找不到來源記憶卡（資料不完整）。" });
   const article = h(
     "article",
     { class: "connection" + (mode === "trash" ? " connection--trashed" : "") },
@@ -71,7 +71,7 @@ export function renderGallery(root: HTMLElement, data: SessionView, actions: Rev
     return;
   }
   if (cards.length === 0) {
-    root.append(empty("可見的記憶卡都在垃圾桶。可到「垃圾桶」還原。"));
+    root.append(empty("可見的記憶卡都在刪除區。可到「刪除區」還原。"));
     return;
   }
   root.append(
@@ -114,7 +114,7 @@ export function renderConnections(root: HTMLElement, data: SessionView, actions:
     return;
   }
   if (listItems.length === 0) {
-    root.append(empty("可見的連結卡片都在垃圾桶。可到「垃圾桶」還原。"));
+    root.append(empty("可見的連結卡片都在刪除區。可到「刪除區」還原。"));
     return;
   }
   const hiddenMemory = trashedIds(data, "memory");
@@ -142,12 +142,12 @@ export function renderTrash(root: HTMLElement, data: SessionView, actions: Revie
   const head = h(
     "div",
     { class: "trash-page__head" },
-    h("h2", { text: "垃圾桶" }),
+    h("h2", { text: "刪除區" }),
     h("p", { class: "trash-page__count", text: total === 0 ? "目前沒有卡片" : "共 " + total + " 張可還原" }),
     h("p", { class: "muted", text: "刪除只會從回顧畫面隱藏，不會改到原始研究資料。按「還原」即可回到圖庫、分類與時間線。" }),
   );
   if (total === 0) {
-    root.append(h("section", { class: "trash-page" }, head, h("div", { class: "trash-empty" }, empty("垃圾桶是空的。從卡片上按「刪除」後會出現在這裡。"))));
+    root.append(h("section", { class: "trash-page" }, head, h("div", { class: "trash-empty" }, empty("刪除區是空的。從卡片上按「刪除」後會出現在這裡。"))));
     return;
   }
   const byId = new Map(data.memoryCards.map((c) => [c.cardId, c] as const));
